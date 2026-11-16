@@ -1,0 +1,2312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Broadcast Hub</title>
+<meta name="description" content="Write once and publish to your WordPress sites and social media channels.">
+<meta name="theme-color" content="#14161d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='4' fill='%23e8951c'/%3E%3Cpath d='M9 9a10 10 0 0 0 0 14M23 9a10 10 0 0 1 0 14M5 5a15.5 15.5 0 0 0 0 22M27 5a15.5 15.5 0 0 1 0 22' fill='none' stroke='%23e8951c' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a broadcast desk. Writing surface on the left, the transmitter (channels, timing, send, live lamps) on the right. */
+:root {
+  --bg: #eef0f4;
+  --surface: #ffffff;
+  --surface-2: #f6f7fa;
+  --ink: #171a24;
+  --muted: #5b6173;
+  --line: #dadde6;
+  --accent: #c97a06;          /* transmit amber */
+  --accent-ink: #ffffff;
+  --accent-soft: #fbf0dc;
+  --ok: #23855a;
+  --ok-soft: #e3f3ea;
+  --fail: #c2392e;
+  --fail-soft: #fbe7e5;
+  --focus: #2f6fd6;
+  --shadow: 0 1px 2px rgba(23, 26, 36, .06), 0 4px 16px rgba(23, 26, 36, .05);
+  --badge-l: 40%;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 12px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111319; --surface: #191c25; --surface-2: #1f2330; --ink: #e8eaf1; --muted: #979db0; --line: #2b3040;
+    --accent: #eda431; --accent-ink: #1b1305; --accent-soft: #3a2c12; --ok: #4cc28a; --ok-soft: #15301f;
+    --fail: #f0766b; --fail-soft: #3b1c1a; --focus: #78a6ff; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+    --badge-l: 72%;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111319; --surface: #191c25; --surface-2: #1f2330; --ink: #e8eaf1; --muted: #979db0; --line: #2b3040;
+  --accent: #eda431; --accent-ink: #1b1305; --accent-soft: #3a2c12; --ok: #4cc28a; --ok-soft: #15301f;
+  --fail: #f0766b; --fail-soft: #3b1c1a; --focus: #78a6ff; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  --badge-l: 72%;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 var(--font-body);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+a { color: var(--focus); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Header */
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 21; background: var(--bg); }
+.topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+.brand svg { width: 30px; height: 30px; color: var(--accent); flex: none; }
+.brand b { font: 700 21px/1 var(--font-display); letter-spacing: -.02em; }
+.tabs { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.tabs a { padding: 6px 14px; border-radius: 999px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
+.tabs a:hover { color: var(--ink); }
+.tabs a[aria-current="page"] { background: var(--ink); color: var(--bg); }
+.count { font: 500 11px/1 var(--font-mono); padding: 3px 6px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.tabs a[aria-current="page"] .count { background: color-mix(in srgb, var(--bg) 22%, transparent); color: inherit; }
+
+main { padding-block: 24px 64px; }
+.view-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+h1 { font: 700 clamp(26px, 3.4vw, 34px)/1.1 var(--font-display); letter-spacing: -.025em; margin: 0; text-wrap: balance; }
+h2 { font: 600 13px/1.2 var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0; }
+.sub { color: var(--muted); margin: 6px 0 0; max-width: 62ch; }
+
+/* Generic pieces */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.field { display: grid; gap: 6px; min-width: 0; }
+label, .label { font-weight: 600; font-size: 13.5px; }
+.hint { color: var(--muted); font-size: 12.5px; line-height: 1.45; font-weight: 400; }
+input[type=text], input[type=url], input[type=password], input[type=datetime-local], textarea, select {
+  width: 100%; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px;
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 22%, transparent); }
+textarea { resize: vertical; }
+.mono { font-family: var(--font-mono); font-size: 12.5px; }
+.btn { font: 600 14px/1 var(--font-body); padding: 10px 14px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; white-space: nowrap; }
+.btn:hover { border-color: color-mix(in srgb, var(--ink) 30%, var(--line)); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn.small { padding: 7px 10px; font-size: 13px; }
+.btn.tiny { padding: 5px 8px; font-size: 12px; border-radius: 7px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.big { padding: 15px 18px; font-size: 16px; width: 100%; border-radius: 11px; }
+.btn.danger { color: var(--fail); }
+.link { background: none; border: 0; padding: 0; font: inherit; color: var(--focus); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.link.danger { color: var(--fail); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.notice { padding: 10px 12px; border-radius: 9px; font-size: 13.5px; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); overflow-wrap: anywhere; }
+.notice.fail { background: var(--fail-soft); border-color: color-mix(in srgb, var(--fail) 35%, transparent); }
+
+/* Channel type badge: neutral two-letter mark tinted per type. */
+.badge { --h: 210; --s: 55%; flex: none; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+  font: 700 12px/1 var(--font-mono); letter-spacing: -.02em;
+  color: hsl(var(--h) var(--s) var(--badge-l));
+  background: color-mix(in srgb, hsl(var(--h) var(--s) 50%) 14%, var(--surface)); }
+.badge.sm { width: 26px; height: 26px; border-radius: 7px; font-size: 10.5px; }
+
+/* Compose */
+.compose { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 20px; align-items: start; }
+.col-main, .col-side { display: grid; gap: 16px; min-width: 0; }
+.col-side { position: sticky; top: 84px; }
+.editing-banner { margin-bottom: 16px; }
+.title-input { font: 700 clamp(22px, 2.6vw, 28px)/1.2 var(--font-display) !important; letter-spacing: -.02em; padding: 12px 14px !important; border-radius: var(--r) !important; }
+.editor { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.editor:focus-within { border-color: var(--focus); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.toolbar button { min-width: 34px; height: 32px; padding: 0 8px; border: 0; border-radius: 6px; background: none; color: var(--ink); cursor: pointer; font: 600 13px/1 var(--font-body); }
+.toolbar button:hover { background: var(--surface); }
+.toolbar button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.toolbar .sep { width: 1px; background: var(--line); margin: 4px 4px; }
+.toolbar .push { margin-left: auto; font-family: var(--font-mono); font-size: 12px; }
+.rte, .rte-html { min-height: 280px; padding: 16px 18px; outline: none; max-width: 100%; overflow-wrap: anywhere; }
+.rte { font-size: 16px; line-height: 1.65; }
+.rte:empty::before { content: attr(data-placeholder); color: var(--muted); }
+.rte > * { margin: 0 0 .8em; max-width: 68ch; }
+.rte h2 { font: 700 22px/1.25 var(--font-display); text-transform: none; letter-spacing: 0; color: inherit; }
+.rte h3 { font: 600 18px/1.3 var(--font-display); }
+.rte blockquote { border-left: 3px solid var(--accent); padding-left: 14px; color: var(--muted); }
+.rte-html { width: 100%; border: 0; border-radius: 0; font: 13px/1.6 var(--font-mono); resize: vertical; }
+
+.counts { display: flex; flex-wrap: wrap; gap: 6px; }
+.counts span { font: 500 11.5px/1 var(--font-mono); padding: 5px 7px; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
+.counts span.over { background: var(--fail-soft); color: var(--fail); }
+
+.pick-group { display: grid; gap: 6px; }
+.pick-group + .pick-group { margin-top: 6px; }
+.group-label { font: 500 11px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 2px 0; }
+.pick { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.pick:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.pick input { margin: 0; accent-color: var(--accent); width: 16px; height: 16px; }
+.pick strong { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick small { display: block; color: var(--muted); font: 12px/1.3 var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.lamp { width: 10px; height: 10px; border-radius: 50%; background: var(--line); flex: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent); }
+.lamp.sending { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+.lamp.ok { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+.lamp.fail { background: var(--fail); box-shadow: 0 0 0 3px var(--fail-soft); }
+.lamp.manual { background: var(--surface); box-shadow: inset 0 0 0 2.5px var(--accent); }
+.lamp.skip { background: var(--surface); box-shadow: inset 0 0 0 2px var(--line); }
+@keyframes pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 25%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .lamp.sending { animation: none; } }
+
+.image-drop { position: relative; border: 1.5px dashed var(--line); border-radius: 10px; min-height: 110px; display: grid; place-items: center; text-align: center; padding: 10px; color: var(--muted); font-size: 13.5px; font-weight: 400; overflow: hidden; cursor: pointer; }
+.image-drop.drag { border-color: var(--accent); background: var(--accent-soft); }
+.image-drop.has-image { padding: 0; border-style: solid; }
+.image-drop img { width: 100%; height: auto; display: block; }
+.image-drop video { width: 100%; height: auto; max-height: 260px; display: block; background: var(--ink); }
+.image-drop input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.image-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--muted); min-width: 0; }
+.image-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 9px; padding: 3px; gap: 3px; background: var(--surface-2); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { text-align: center; padding: 7px 4px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--muted); }
+.seg input:checked + label { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.seg input:focus-visible + label { outline: 2px solid var(--focus); }
+
+.results { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.results li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+.results li:first-child { border-top: 0; }
+.results .name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.results .msg { grid-column: 2; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.results .fail .msg { color: var(--fail); }
+.results .acts { grid-column: 2; display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* History */
+.hist { display: grid; gap: 12px; }
+.hist-item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 20px; }
+.hist-item h3 { margin: 0; font: 600 18px/1.3 var(--font-display); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.hist-meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; min-width: 0; }
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px 5px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; color: var(--ink); text-decoration: none; max-width: 100%; min-width: 0; }
+.chip > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip .lamp { width: 8px; height: 8px; }
+.chip em { font-style: normal; color: var(--muted); }
+a.chip:hover { border-color: var(--focus); }
+.hist-actions { display: flex; gap: 6px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; }
+.state { font: 500 11px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; padding: 4px 7px; border-radius: 5px; background: var(--surface-2); color: var(--muted); vertical-align: 3px; margin-left: 6px; white-space: nowrap; }
+.state.ok { background: var(--ok-soft); color: var(--ok); }
+.state.partial { background: var(--accent-soft); color: var(--accent); }
+.state.fail { background: var(--fail-soft); color: var(--fail); }
+
+/* Channels */
+.channels { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+.ch-list { display: grid; gap: 10px; min-width: 0; }
+.ch-group-title { margin: 10px 0 0; }
+.ch-group-title:first-child { margin-top: 0; }
+.ch { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); min-width: 0; }
+.ch-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px 16px; }
+.ch-top strong { display: block; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-top small { display: block; color: var(--muted); font: 12px/1.4 var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-status { font-size: 12.5px; padding: 0 16px 12px 62px; color: var(--muted); overflow-wrap: anywhere; }
+.ch-status.ok { color: var(--ok); } .ch-status.fail { color: var(--fail); }
+.ch-edit { border-top: 1px solid var(--line); padding: 16px; display: grid; gap: 12px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; }
+.check input { margin-top: 3px; accent-color: var(--accent); flex: none; }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 5px; font-size: 13.5px; color: var(--muted); }
+.steps b { color: var(--ink); font-weight: 600; }
+.steps code { font: 12px var(--font-mono); background: var(--surface-2); padding: 1px 4px; border-radius: 4px; color: var(--ink); overflow-wrap: anywhere; word-break: break-all; }
+.steps li { min-width: 0; overflow-wrap: anywhere; }
+#addForm, #addFields { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+details.more summary { cursor: pointer; color: var(--focus); font-size: 13.5px; }
+details.more[open] summary { margin-bottom: 10px; }
+
+.type-group { display: grid; gap: 6px; }
+.type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.type-btn { display: flex; align-items: center; gap: 9px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); cursor: pointer; font: 600 13.5px/1.2 var(--font-body); text-align: left; min-width: 0; }
+.type-btn:hover { border-color: var(--accent); }
+.type-btn span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.add-head { display: flex; align-items: center; gap: 10px; }
+.add-head b { font: 600 17px/1.2 var(--font-display); flex: 1; }
+
+.empty { border: 1.5px dashed var(--line); border-radius: var(--r); padding: 32px 20px; text-align: center; color: var(--muted); display: grid; gap: 10px; justify-items: center; }
+.empty h3 { margin: 0; color: var(--ink); font: 600 18px/1.3 var(--font-display); }
+
+/* Lock screen + toast */
+.lock { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-left, 0px)); }
+.lock form { width: min(400px, 100%); }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 60; background: var(--ink); color: var(--bg); padding: 11px 16px; border-radius: 10px; font-weight: 500; font-size: 14px; box-shadow: var(--shadow); max-width: calc(100vw - 32px); }
+.toast.fail { background: var(--fail); color: #fff; }
+
+@media (max-width: 1020px) {
+  .compose, .channels { grid-template-columns: minmax(0, 1fr); }
+  .col-side { position: static; }
+}
+@media (max-width: 560px) {
+  .hist-item { grid-template-columns: minmax(0, 1fr); }
+  .hist-actions { justify-content: flex-start; }
+  .tabs a { padding: 6px 10px; }
+  .ch-status { padding-left: 16px; }
+  .ch-top { grid-template-columns: auto minmax(0, 1fr); }
+  .ch-top > .row { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#compose" aria-label="Broadcast Hub">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="4" fill="currentColor"/><path d="M9 9a10 10 0 0 0 0 14M23 9a10 10 0 0 1 0 14M5 5a15.5 15.5 0 0 0 0 22M27 5a15.5 15.5 0 0 1 0 22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+      <b>Broadcast Hub</b>
+    </a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#compose" data-view="compose">Compose</a>
+      <a href="#history" data-view="history">History <span class="count" id="histCount">0</span></a>
+      <a href="#channels" data-view="channels">Channels <span class="count" id="chCount">0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="notice fail" id="storageWarn" hidden style="margin-bottom:16px">This browser is not saving data. Your channels and history will be forgotten when you close the page. Use <b>Channels → Download backup</b> to keep a copy.</div>
+
+  <!-- ============ COMPOSE ============ -->
+  <section id="view-compose" data-page hidden>
+    <div class="notice editing-banner" id="editingBanner" hidden>
+      Editing <b id="editingTitle"></b>. Sending again updates what is already posted, and posts to channels that were skipped.
+      <button class="link" id="newBtn" type="button">Start a new broadcast</button>
+    </div>
+
+    <div class="compose">
+      <div class="col-main">
+        <input id="fTitle" type="text" class="title-input" placeholder="Headline" aria-label="Headline" autocomplete="off">
+
+        <div class="editor">
+          <div class="toolbar" role="toolbar" aria-label="Formatting">
+            <button type="button" data-cmd="p" title="Paragraph">¶</button>
+            <button type="button" data-cmd="h2" title="Heading">H2</button>
+            <button type="button" data-cmd="h3" title="Subheading">H3</button>
+            <span class="sep"></span>
+            <button type="button" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+            <button type="button" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+            <button type="button" data-cmd="link" title="Link">Link</button>
+            <span class="sep"></span>
+            <button type="button" data-cmd="ul" title="Bullet list">• List</button>
+            <button type="button" data-cmd="ol" title="Numbered list">1. List</button>
+            <button type="button" data-cmd="quote" title="Quote">“ ”</button>
+            <button type="button" data-cmd="clear" title="Remove formatting">Clear</button>
+            <button type="button" data-cmd="html" class="push" aria-pressed="false" title="Edit HTML">&lt;/&gt;</button>
+          </div>
+          <div id="fBody" class="rte" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Article text" data-placeholder="The full article for your websites. Paste from anywhere; formatting is cleaned up."></div>
+          <textarea id="fBodyHtml" class="rte-html" aria-label="Article HTML" spellcheck="false" hidden></textarea>
+        </div>
+
+        <div class="panel">
+          <div class="field">
+            <label for="fExcerpt">Social post text</label>
+            <textarea id="fExcerpt" rows="4" maxlength="2000" placeholder="What you’d write on social media. Also used as the excerpt on WordPress."></textarea>
+            <div class="hint">Also the YouTube description and the TikTok caption. The link and hashtags are added for you on each network, and the text is shortened where a network has a limit.</div>
+            <div class="counts" id="socialCounts"></div>
+          </div>
+          <div class="field">
+            <label for="fLink">Link in social posts <span class="hint">(optional)</span></label>
+            <input id="fLink" type="url" class="mono" placeholder="Automatic: the post on your first website">
+          </div>
+        </div>
+      </div>
+
+      <aside class="col-side">
+        <div class="panel">
+          <div class="panel-head"><h2>Send to</h2><button class="link" id="toggleAll" type="button">All / none</button></div>
+          <div id="pickList"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Image</h2>
+          <label class="image-drop" id="imageDrop" for="fImage">
+            <input type="file" id="fImage" accept="image/*">
+            <img id="imgPreview" alt="" hidden>
+            <span id="imgEmpty">Drop an image here or <u>choose a file</u></span>
+          </label>
+          <div class="image-meta"><span id="imgName"></span><button class="link danger" id="imgRemove" type="button" hidden>Remove</button></div>
+        </div>
+
+        <div class="panel" id="videoPanel" hidden>
+          <h2>Video</h2>
+          <label class="image-drop" id="videoDrop" for="fVideo">
+            <input type="file" id="fVideo" accept="video/*">
+            <video id="vidPreview" muted playsinline preload="metadata" hidden></video>
+            <span id="vidEmpty">Drop a video here or <u>choose a file</u></span>
+          </label>
+          <div class="image-meta"><span id="vidName"></span><button class="link danger" id="vidRemove" type="button" hidden>Remove</button></div>
+          <div class="hint">For YouTube and TikTok. The image above becomes the YouTube thumbnail. Pick the video again if you reload the page.</div>
+        </div>
+
+        <div class="panel">
+          <h2>When</h2>
+          <div class="seg" role="radiogroup" aria-label="When to publish">
+            <input type="radio" name="mode" id="mPublish" value="publish" checked><label for="mPublish">Publish now</label>
+            <input type="radio" name="mode" id="mSchedule" value="schedule"><label for="mSchedule">Schedule</label>
+            <input type="radio" name="mode" id="mDraft" value="draft"><label for="mDraft">Draft</label>
+          </div>
+          <div class="field" id="scheduleRow" hidden>
+            <label for="fWhen">Publish at</label>
+            <input type="datetime-local" id="fWhen">
+            <div class="hint">WordPress, Facebook pages and Mastodon publish it at this time by themselves. Channels that can’t schedule are skipped; open the broadcast when it’s live and press Publish to post there too.</div>
+          </div>
+          <div class="hint" id="draftHint" hidden>Saved as a draft on your websites so you can review it there. Social channels are skipped.</div>
+          <div class="field">
+            <label for="fCats">Categories</label>
+            <input id="fCats" type="text" placeholder="News, Events" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="fTags">Tags</label>
+            <input id="fTags" type="text" placeholder="larp, tutorial" autocomplete="off">
+            <div class="hint">Comma separated. Tags on websites, hashtags on social channels that have it turned on.</div>
+          </div>
+        </div>
+
+        <button class="btn primary big" id="sendBtn" type="button">Send</button>
+
+        <div class="panel" id="resultsPanel" hidden aria-live="polite">
+          <h2 id="resultsTitle">Sending</h2>
+          <ul class="results" id="resultsList"></ul>
+        </div>
+        <div class="hint" id="draftNote" style="text-align:center"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ HISTORY ============ -->
+  <section id="view-history" data-page hidden>
+    <div class="view-head">
+      <div><h1>History</h1><p class="sub">Everything sent from this browser. Open one to change it and update it everywhere.</p></div>
+      <a class="btn primary" href="#compose" id="histNew">New broadcast</a>
+    </div>
+    <div class="hist" id="histList"></div>
+  </section>
+
+  <!-- ============ CHANNELS ============ -->
+  <section id="view-channels" data-page hidden>
+    <div class="view-head">
+      <div><h1>Channels</h1><p class="sub">Your websites and social media accounts. Logins and tokens are saved only in this browser.</p></div>
+    </div>
+    <div class="channels">
+      <div class="ch-list" id="chList"></div>
+
+      <aside class="col-side" style="position:static">
+        <div class="panel" id="addPanel">
+          <h2>Add a channel</h2>
+          <div id="typePicker"></div>
+          <form id="addForm" autocomplete="off" hidden style="display:grid; gap:12px">
+            <div class="add-head"><span id="addBadge"></span><b id="addTitle"></b><button class="link" type="button" id="addBack">Back</button></div>
+            <div id="addIntro" class="hint"></div>
+            <ol class="steps" id="addSteps"></ol>
+            <div id="addFields" style="display:grid; gap:12px"></div>
+            <div id="oneClickBox" hidden>
+              <button class="btn" type="button" id="oneClickBtn" style="width:100%">Connect with WordPress login instead</button>
+              <p class="hint" id="oneClickHint" style="margin:6px 0 0; overflow-wrap:anywhere">You log in on the site, press Approve, and come straight back.</p>
+            </div>
+            <button class="btn primary" type="submit" id="addBtn">Connect</button>
+            <div class="notice fail" id="addError" hidden></div>
+          </form>
+        </div>
+
+        <div class="panel" id="securityPanel">
+          <h2>Security &amp; backup</h2>
+          <div id="lockArea"></div>
+          <div class="row">
+            <button class="btn small" type="button" id="exportBtn">Download backup</button>
+            <label class="btn small" for="importFile">Restore backup</label>
+            <input type="file" id="importFile" accept="application/json,.json" hidden>
+          </div>
+          <p class="hint" style="margin:0">The backup file contains your passwords and tokens. Keep it somewhere safe.</p>
+          <button class="link danger" type="button" id="wipeBtn" style="justify-self:start">Forget everything in this browser</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<!-- Lock screen -->
+<div class="lock" id="lockScreen" hidden>
+  <form class="panel" id="unlockForm">
+    <div class="brand" style="justify-content:center"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="4" fill="currentColor"/><path d="M9 9a10 10 0 0 0 0 14M23 9a10 10 0 0 1 0 14M5 5a15.5 15.5 0 0 0 0 22M27 5a15.5 15.5 0 0 1 0 22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><b>Broadcast Hub</b></div>
+    <div class="field">
+      <label for="unlockPass">Passphrase</label>
+      <input id="unlockPass" type="password" autocomplete="current-password" required>
+      <div class="hint">Your channel logins are locked with a passphrase.</div>
+    </div>
+    <button class="btn primary" type="submit">Unlock</button>
+    <div class="notice fail" id="unlockError" hidden>That passphrase doesn’t match. Try again.</div>
+    <button class="link danger" type="button" id="lockForget" style="justify-self:center">Forgot it? Remove saved logins</button>
+  </form>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   Broadcast Hub — write once, publish to websites and social media.
+   Runs entirely in the browser and calls each service's API directly.
+   Channel types live in TYPES; each one follows the same small contract.
+   ===================================================================== */
+
+const APP_ID = '3f6c2a8e-9b41-4d7e-a5c3-1e8f0b2d7a64';
+const GRAPH_V = 'v22.0';
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const enc = new TextEncoder();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const stripTags = s => String(s ?? '').replace(/<[^>]*>/g, '').replace(/&#0?39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+const splitList = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
+const hostOf = u => { try { return new URL(u).host; } catch { return u; } };
+const fmtDate = t => new Date(t).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+const b64 = str => btoa(String.fromCharCode(...enc.encode(str)));
+const bytesToB64 = b => { let s = ''; b.forEach(x => s += String.fromCharCode(x)); return btoa(s); };
+const b64ToBytes = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const normUrl = u => { u = String(u || '').trim(); if (!/^https?:\/\//i.test(u)) u = 'https://' + u; return u.replace(/\/+$/, ''); };
+const graphemes = s => { try { return [...new Intl.Segmenter().segment(s)].length; } catch { return [...s].length; } };
+function cutGraphemes(s, n) {
+  let parts; try { parts = [...new Intl.Segmenter().segment(s)].map(x => x.segment); } catch { parts = [...s]; }
+  return parts.length <= n ? s : parts.slice(0, Math.max(0, n - 1)).join('').trimEnd() + '…';
+}
+
+/* ---------- Storage ---------- */
+const LS = {
+  ok: (() => { try { localStorage.setItem('bh.t', '1'); localStorage.removeItem('bh.t'); return true; } catch { return false; } })(),
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+
+const S = { channels: [], history: [], vault: { enabled: false, salt: null, key: null }, tests: {}, editingCh: null, addType: null };
+
+async function deriveKey(pass, salt) {
+  const base = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function saveChannels() {
+  if (S.vault.enabled) {
+    if (!S.vault.key) return;
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, S.vault.key, enc.encode(JSON.stringify(S.channels)));
+    LS.set('bh.vault', { salt: bytesToB64(S.vault.salt), iv: bytesToB64(iv), data: bytesToB64(new Uint8Array(ct)) });
+    LS.del('bh.channels');
+  } else {
+    LS.set('bh.channels', S.channels);
+    LS.del('bh.vault');
+  }
+  renderCounts();
+}
+function saveHistory() {
+  if (!LS.set('bh.history', S.history)) toast('History is too large to save. Remove some old items.', 'fail');
+  renderCounts();
+}
+
+/* ---------- HTTP ---------- */
+const netError = url => new Error(`Could not reach ${hostOf(url)}. Check your connection and the details you entered. If it keeps failing, that service may not accept posts from a browser; use a “Share by hand” channel instead.`);
+function apiMessage(d) {
+  if (!d) return '';
+  if (typeof d === 'string') return d.slice(0, 240);
+  const m = d.error?.message || d.error_user_msg || d.message || d.description || d.error_description || (typeof d.error === 'string' ? d.error : '');
+  return stripTags(m);
+}
+async function http(url, { method = 'GET', headers = {}, json, body } = {}) {
+  const h = { Accept: 'application/json', ...headers };
+  let b = body;
+  if (json !== undefined) { h['Content-Type'] = 'application/json'; b = JSON.stringify(json); }
+  let r;
+  try { r = await fetch(url, { method, headers: h, body: b }); } catch { throw Object.assign(netError(url), { net: true }); }
+  const txt = await r.text();
+  let data = null; try { data = txt ? JSON.parse(txt) : null; } catch { data = txt; }
+  if (!r.ok || (data && data.ok === false)) throw Object.assign(new Error(apiMessage(data) || `HTTP ${r.status} ${r.statusText}`), { status: r.status, data });
+  return data;
+}
+const form = obj => { const f = new FormData(); for (const [k, v] of Object.entries(obj)) if (v !== undefined && v !== null && v !== '') f.append(k, v); return f; };
+
+/* ---------- Images ---------- */
+async function shrinkImage(file, maxBytes, maxDim = 2000) {
+  if (file.size <= maxBytes && /jpe?g|png|webp/.test(file.type)) return file;
+  const bmp = await createImageBitmap(file);
+  let scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height)), q = 0.88;
+  for (let i = 0; i < 10; i++) {
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
+    if (blob && blob.size <= maxBytes) return new File([blob], (file.name || 'image').replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+    if (q > 0.62) q -= 0.08; else scale *= 0.8;
+  }
+  throw new Error('The image is too large for this network. Try a smaller one.');
+}
+
+/* ---------- Social text ---------- */
+const hashtagify = tags => tags.map(t => '#' + t.replace(/[^\p{L}\p{N}_]/gu, '')).filter(t => t.length > 1);
+/** Build the post text for a social channel: text, then link, then hashtags, shortened to fit. */
+function socialText(ch, post, ctx, { limit = Infinity, link = true, hashtags = false, linkCost } = {}) {
+  const url = link ? (ctx.link || '') : '';
+  const tags = hashtags ? hashtagify(post.tags).join(' ') : '';
+  let text = (post.social || post.title || '').trim();
+  const tail = [url, tags].filter(Boolean);
+  const tailLen = tail.reduce((n, t, i) => n + (t === url && linkCost ? linkCost : graphemes(t)) + 2, 0);
+  if (Number.isFinite(limit)) text = cutGraphemes(text, Math.max(20, limit - tailLen));
+  const full = [text, ...tail].filter(Boolean).join('\n\n');
+  const length = graphemes(text) + tailLen;
+  return { text: full, length, over: Number.isFinite(limit) && length > limit };
+}
+const setting = (ch, key) => {
+  const s = ch.settings || {};
+  if (key in s) return s[key];
+  const def = (TYPES[ch.type].settings || []).find(d => d.key === key);
+  return def ? def.default : undefined;
+};
+
+/* ---------- Errors ---------- */
+const WP_NET_ERR = 'Could not reach the site. Check the address, that the site is online, and that a security plugin or firewall is not blocking the REST API for other websites.';
+function friendlyError(e) {
+  if (!e) return 'Something went wrong.';
+  if (e.wp && e.status === 401) {
+    if (e.code === 'rest_not_logged_in') return 'The site did not receive the login. Some hosts strip the “Authorization” header; ask your host to pass it through, or check the application password.';
+    return 'Login rejected. Check the username and application password.';
+  }
+  if (e.status === 401) return (e.message ? e.message + '. ' : '') + 'Check the token or password; it may have expired.';
+  if (e.wp && e.status === 403) return (e.message ? e.message + ' ' : '') + 'This user may not have permission for that on the site.';
+  return e.message || String(e);
+}
+
+/* =====================================================================
+   Channel types
+
+   Each type has:
+     label, abbr, hue, group ('site' | 'social' | 'manual')
+     fields:   what you enter when connecting  [{ key, label, type, placeholder, help, optional }]
+     settings: per-channel options             [{ key, label, type, default, options, help }]
+     steps:    how to get the login details (HTML list items)
+     connect(values) -> { name, cfg, message }   (must verify the login)
+     test(ch) -> "Connected as …"
+     publish(ch, post, ref, step, ctx) -> new ref  (ref = what it returned last time)
+       return { unchanged: true, note } when it can't edit, or { manual: true, … } for share-by-hand
+     remove(ch, ref)
+     describe(ch) -> one short line
+     canSchedule, limit
+   ===================================================================== */
+
+const WordPress = {
+  label: 'WordPress', abbr: 'WP', hue: 205, group: 'site', canSchedule: true,
+  intro: 'Any WordPress site with WordPress 5.6 or newer on https.',
+  fields: [
+    { key: 'site', label: 'Site address', type: 'url', placeholder: 'https://larpforge.org', mono: true },
+    { key: 'name', label: 'Name', type: 'text', placeholder: 'Uses the site title if empty', optional: true },
+    { key: 'user', label: 'Username', type: 'text' },
+    { key: 'pass', label: 'Application password', type: 'password', placeholder: 'xxxx xxxx xxxx xxxx xxxx xxxx', mono: true, secret: true },
+  ],
+  steps: [
+    'On the site, open <b>Users → Profile</b>. <a href="#" data-profile-link target="_blank" rel="noopener" hidden>Open it</a>',
+    'Under <b>Application Passwords</b>, type “Broadcast Hub” and press <b>Add</b>.',
+    'Copy the password it shows and paste it below.',
+  ],
+  settings: [
+    { key: 'status', label: 'Status on this site', type: 'select', default: '', options: [['', 'Follow the broadcast'], ['draft', 'Always save as draft'], ['pending', 'Always send for review']] },
+    { key: 'copyTerms', label: 'Copy categories and tags', type: 'checkbox', default: true },
+    { key: 'extraCategory', label: 'Always add category', type: 'text', default: '', placeholder: 'e.g. From LarpForge', help: 'Created on the site if it doesn’t exist.' },
+    { key: 'postType', label: 'Post type', type: 'text', default: 'posts', mono: true, help: 'REST base. Usually “posts”; “pages” or a custom type also work.' },
+  ],
+
+  async discover(siteUrl) {
+    const roots = [siteUrl + '/wp-json/', siteUrl + '/?rest_route=/'];
+    let last = null;
+    for (const root of roots) {
+      try {
+        const r = await fetch(root, { headers: { Accept: 'application/json' } });
+        if (!r.ok) { last = Object.assign(new Error('HTTP ' + r.status), { status: r.status }); continue; }
+        const j = await r.json().catch(() => null);
+        if (!j || !j.namespaces) continue;
+        return { apiRoot: root, name: stripTags(j.name || ''), home: String(j.home || siteUrl).replace(/\/+$/, ''), authorize: j.authentication?.['application-passwords']?.endpoints?.authorization || '' };
+      } catch (e) { last = e; }
+    }
+    if (last && last.status) throw new Error('No WordPress REST API found at that address (HTTP ' + last.status + ').');
+    throw new Error(WP_NET_ERR);
+  },
+  url(ch, route, query = {}) {
+    const u = new URL(ch.apiRoot + route.replace(/^\//, ''));
+    for (const [k, v] of Object.entries(query)) u.searchParams.set(k, v);
+    return u.toString();
+  },
+  async req(ch, method, route, { json, body, headers = {}, query = {} } = {}) {
+    const h = { Authorization: 'Basic ' + b64(ch.user + ':' + String(ch.pass).replace(/\s+/g, '')), Accept: 'application/json', ...headers };
+    let b = body;
+    if (json !== undefined) { h['Content-Type'] = 'application/json'; b = JSON.stringify(json); }
+    let r;
+    try { r = await fetch(this.url(ch, route, query), { method, headers: h, body: b }); } catch { throw new Error(WP_NET_ERR); }
+    let data = null; try { data = await r.json(); } catch {}
+    if (!r.ok) throw Object.assign(new Error(data?.message ? stripTags(data.message) : `HTTP ${r.status} ${r.statusText}`), { wp: true, status: r.status, code: data?.code, data });
+    return data;
+  },
+  async connect(v, discovered) {
+    const d = discovered || await this.discover(normUrl(v.site));
+    const ch = { type: 'wordpress', name: v.name || d.name || hostOf(d.home), siteUrl: d.home, apiRoot: d.apiRoot, user: String(v.user || '').trim(), pass: String(v.pass || '').trim() };
+    if (!ch.user || !ch.pass) throw new Error('Enter the username and the application password from the site.');
+    const message = await this.test(ch);
+    return { ...ch, message, same: c => c.type === 'wordpress' && c.siteUrl === ch.siteUrl && c.user === ch.user };
+  },
+  async test(ch) {
+    const me = await this.req(ch, 'GET', 'wp/v2/users/me', { query: { context: 'edit' } });
+    const caps = me.capabilities || {};
+    if (!caps.edit_posts && !caps.publish_posts) throw new Error('Logged in, but this user cannot write posts on that site.');
+    return 'Connected as ' + (me.name || ch.user) + (caps.publish_posts ? '' : ' (can only save drafts)');
+  },
+  async termIds(ch, tax, names, cache) {
+    const ids = [];
+    for (const name of [...new Set(names)]) {
+      const key = tax + '|' + name.toLowerCase();
+      if (cache[key]) { ids.push(cache[key]); continue; }
+      let id = 0;
+      const found = await this.req(ch, 'GET', 'wp/v2/' + tax, { query: { search: name, per_page: 50 } }).catch(() => []);
+      const hit = (found || []).find(t => stripTags(t.name).toLowerCase() === name.toLowerCase());
+      if (hit) id = hit.id;
+      else {
+        try { id = (await this.req(ch, 'POST', 'wp/v2/' + tax, { json: { name } })).id; }
+        catch (e) { id = e.data?.data?.term_id || 0; }
+      }
+      if (id) { cache[key] = id; ids.push(id); }
+    }
+    return ids;
+  },
+  async uploadMedia(ch, file, alt) {
+    const safe = (file.name || 'image').normalize('NFKD').replace(/[^\w.\-]+/g, '-').replace(/^-+|-+$/g, '') || 'image.jpg';
+    const media = await this.req(ch, 'POST', 'wp/v2/media', { body: file, headers: { 'Content-Type': file.type || 'application/octet-stream', 'Content-Disposition': `attachment; filename="${safe}"` } });
+    if (alt) this.req(ch, 'POST', 'wp/v2/media/' + media.id, { json: { alt_text: alt } }).catch(() => {});
+    return { id: media.id, url: media.source_url || '' };
+  },
+  async publish(ch, p, ref, step) {
+    const type = (setting(ch, 'postType') || 'posts').replace(/[^a-z0-9_-]/gi, '') || 'posts';
+    const status = setting(ch, 'status') || (p.mode === 'draft' ? 'draft' : 'publish');
+    const body = { title: p.title, content: p.content, excerpt: p.excerpt, status };
+    if (status === 'publish' && p.dateGmt) body.date_gmt = p.dateGmt;
+    if (type === 'posts') {
+      const cache = {};
+      const copy = setting(ch, 'copyTerms') !== false;
+      const cats = copy ? [...p.categories] : [];
+      if (setting(ch, 'extraCategory')) cats.push(setting(ch, 'extraCategory'));
+      if (cats.length) { step('Matching categories'); body.categories = await this.termIds(ch, 'categories', cats, cache); }
+      if (copy && p.tags.length) { step('Matching tags'); body.tags = await this.termIds(ch, 'tags', p.tags, cache); }
+    }
+    const media = { ...(ref.media || {}) }, mediaSrc = { ...(ref.mediaSrc || {}) };
+    if (p.imageFile) {
+      if (!media[p.imageKey]) { step('Uploading image'); const m = await this.uploadMedia(ch, p.imageFile, p.title); media[p.imageKey] = m.id; mediaSrc[p.imageKey] = m.url; }
+      body.featured_media = media[p.imageKey];
+    } else if (p.removeImage) body.featured_media = 0;
+
+    step(ref.remoteId ? 'Updating post' : 'Publishing');
+    let post = null;
+    if (ref.remoteId) {
+      try { post = await this.req(ch, 'POST', `wp/v2/${type}/${ref.remoteId}`, { json: body }); }
+      catch (e) { if (e.status !== 404 && e.status !== 410) throw e; }
+    }
+    if (!post) post = await this.req(ch, 'POST', `wp/v2/${type}`, { json: body });
+    return { remoteId: post.id, url: post.link, status: post.status, media, mediaSrc, imageUrl: p.imageFile ? mediaSrc[p.imageKey] : (p.removeImage ? '' : ref.imageUrl) };
+  },
+  async remove(ch, ref) {
+    if (!ref?.remoteId) return;
+    const type = (setting(ch, 'postType') || 'posts').replace(/[^a-z0-9_-]/gi, '') || 'posts';
+    try { await this.req(ch, 'DELETE', `wp/v2/${type}/${ref.remoteId}`); }
+    catch (e) { if (e.status !== 404 && e.status !== 410) throw e; }
+  },
+  describe: ch => hostOf(ch.siteUrl) + ' · ' + ch.user,
+};
+
+/* ---------- Bluesky ---------- */
+const bskySessions = {};
+const Bluesky = {
+  label: 'Bluesky', abbr: 'BS', hue: 208, group: 'social', limit: 300,
+  intro: 'Posts with a link card and image. Bluesky can’t edit posts, so updates only change your websites.',
+  fields: [
+    { key: 'handle', label: 'Handle', type: 'text', placeholder: 'larpforge.bsky.social' },
+    { key: 'pass', label: 'App password', type: 'password', placeholder: 'xxxx-xxxx-xxxx-xxxx', mono: true, secret: true },
+    { key: 'service', label: 'Server', type: 'url', placeholder: 'https://bsky.social', optional: true, mono: true, help: 'Only change this if your account is on your own server.' },
+  ],
+  steps: [
+    'In Bluesky, open <b>Settings → Privacy and security → App passwords</b>.',
+    'Press <b>Add app password</b>, name it “Broadcast Hub”.',
+    'Copy the password and paste it below with your handle.',
+  ],
+  settings: [
+    { key: 'card', label: 'Show the link as a preview card', type: 'checkbox', default: true },
+    { key: 'link', label: 'Include the link', type: 'checkbox', default: true },
+    { key: 'hashtags', label: 'Add tags as hashtags', type: 'checkbox', default: true },
+  ],
+  svc: ch => normUrl(ch.cfg.service || 'https://bsky.social'),
+  async session(ch, fresh) {
+    const s = bskySessions[ch.id || ch.cfg.handle];
+    if (s && !fresh && s.exp > Date.now()) return s;
+    const svc = this.svc(ch);
+    const r = await http(svc + '/xrpc/com.atproto.server.createSession', { method: 'POST', json: { identifier: ch.cfg.handle.replace(/^@/, ''), password: ch.cfg.pass } });
+    return (bskySessions[ch.id || ch.cfg.handle] = { ...r, svc, exp: Date.now() + 90 * 60e3 });
+  },
+  async connect(v) {
+    const ch = { type: 'bluesky', cfg: { handle: String(v.handle || '').trim().replace(/^@/, ''), pass: String(v.pass || '').trim(), service: v.service ? normUrl(v.service) : '' } };
+    if (!ch.cfg.handle || !ch.cfg.pass) throw new Error('Enter your handle and an app password.');
+    const s = await this.session(ch, true);
+    return { ...ch, name: v.name || '@' + s.handle, message: 'Connected as @' + s.handle, same: c => c.type === 'bluesky' && c.cfg.handle === ch.cfg.handle };
+  },
+  async test(ch) { const s = await this.session(ch, true); return 'Connected as @' + s.handle; },
+  facets(text) {
+    const bytes = s => enc.encode(s).length, out = [];
+    const re = /(https?:\/\/[^\s]+)|(^|\s)(#[\p{L}\p{N}_]+)/gu; let m;
+    while ((m = re.exec(text))) {
+      if (m[1]) { const a = bytes(text.slice(0, m.index)); out.push({ index: { byteStart: a, byteEnd: a + bytes(m[1]) }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: m[1] }] }); }
+      else { const at = m.index + m[2].length, a = bytes(text.slice(0, at)); out.push({ index: { byteStart: a, byteEnd: a + bytes(m[3]) }, features: [{ $type: 'app.bsky.richtext.facet#tag', tag: m[3].slice(1) }] }); }
+    }
+    return out;
+  },
+  async upload(s, file) {
+    const small = await shrinkImage(file, 950000);
+    const r = await http(s.svc + '/xrpc/com.atproto.repo.uploadBlob', { method: 'POST', body: small, headers: { Authorization: 'Bearer ' + s.accessJwt, 'Content-Type': small.type } });
+    return r.blob;
+  },
+  async publish(ch, p, ref, step, ctx) {
+    if (ref.rkey) return { ...ref, unchanged: true, note: 'Bluesky can’t edit posts. The original post is unchanged.' };
+    step('Logging in');
+    const s = await this.session(ch);
+    const card = setting(ch, 'card') && ctx.link;
+    const { text } = socialText(ch, p, ctx, { limit: 300, link: setting(ch, 'link') && !card, hashtags: setting(ch, 'hashtags') });
+    const record = { $type: 'app.bsky.feed.post', text, createdAt: new Date().toISOString() };
+    const facets = this.facets(text); if (facets.length) record.facets = facets;
+    if (card) {
+      const ext = { uri: ctx.link, title: p.title, description: cutGraphemes(p.social || p.excerpt || '', 280) };
+      if (p.imageFile) { step('Uploading image'); ext.thumb = await this.upload(s, p.imageFile); }
+      record.embed = { $type: 'app.bsky.embed.external', external: ext };
+    } else if (p.imageFile) {
+      step('Uploading image');
+      record.embed = { $type: 'app.bsky.embed.images', images: [{ image: await this.upload(s, p.imageFile), alt: p.title }] };
+    }
+    step('Posting');
+    const r = await http(s.svc + '/xrpc/com.atproto.repo.createRecord', { method: 'POST', headers: { Authorization: 'Bearer ' + s.accessJwt }, json: { repo: s.did, collection: 'app.bsky.feed.post', record } });
+    const rkey = r.uri.split('/').pop();
+    return { uri: r.uri, rkey, did: s.did, url: `https://bsky.app/profile/${s.handle}/post/${rkey}`, status: 'publish' };
+  },
+  async remove(ch, ref) {
+    const s = await this.session(ch);
+    await http(s.svc + '/xrpc/com.atproto.repo.deleteRecord', { method: 'POST', headers: { Authorization: 'Bearer ' + s.accessJwt }, json: { repo: ref.did || s.did, collection: 'app.bsky.feed.post', rkey: ref.rkey } });
+  },
+  describe: ch => '@' + ch.cfg.handle,
+};
+
+/* ---------- Mastodon ---------- */
+const Mastodon = {
+  label: 'Mastodon', abbr: 'MA', hue: 255, group: 'social', canSchedule: true,
+  intro: 'Works with any Mastodon server. Posts can be scheduled and edited.',
+  get limit() { return 500; },
+  fields: [
+    { key: 'instance', label: 'Server', type: 'url', placeholder: 'https://mastodon.social', mono: true },
+    { key: 'token', label: 'Access token', type: 'password', mono: true, secret: true },
+  ],
+  steps: [
+    'On your server, open <b>Preferences → Development → New application</b>.',
+    'Name it “Broadcast Hub” and tick only <code>write:statuses</code>, <code>write:media</code> and <code>read:accounts</code>.',
+    'Save, open the application, and copy <b>Your access token</b>.',
+  ],
+  settings: [
+    { key: 'visibility', label: 'Visibility', type: 'select', default: 'public', options: [['public', 'Public'], ['unlisted', 'Quiet public'], ['private', 'Followers only']] },
+    { key: 'link', label: 'Include the link', type: 'checkbox', default: true },
+    { key: 'hashtags', label: 'Add tags as hashtags', type: 'checkbox', default: true },
+  ],
+  api(ch, path, opts = {}) { return http(normUrl(ch.cfg.instance) + path, { ...opts, headers: { Authorization: 'Bearer ' + ch.cfg.token, ...(opts.headers || {}) } }); },
+  async connect(v) {
+    const ch = { type: 'mastodon', cfg: { instance: normUrl(v.instance), token: String(v.token || '').trim() } };
+    if (!v.instance || !ch.cfg.token) throw new Error('Enter your server address and the access token.');
+    const me = await this.api(ch, '/api/v1/accounts/verify_credentials');
+    try { const inst = await http(ch.cfg.instance + '/api/v2/instance'); ch.cfg.limit = inst?.configuration?.statuses?.max_characters || 500; } catch { ch.cfg.limit = 500; }
+    const acct = '@' + me.acct + '@' + hostOf(ch.cfg.instance);
+    return { ...ch, name: v.name || acct, message: 'Connected as ' + acct, same: c => c.type === 'mastodon' && c.cfg.instance === ch.cfg.instance && c.cfg.token === ch.cfg.token };
+  },
+  async test(ch) { const me = await this.api(ch, '/api/v1/accounts/verify_credentials'); return 'Connected as @' + me.acct; },
+  async publish(ch, p, ref, step, ctx) {
+    const limit = ch.cfg.limit || 500;
+    const { text } = socialText(ch, p, ctx, { limit, link: setting(ch, 'link'), hashtags: setting(ch, 'hashtags'), linkCost: 23 });
+    let mediaIds = ref.mediaIds || [];
+    if (p.imageFile && ref.imageKey !== p.imageKey) {
+      step('Uploading image');
+      let m = await this.api(ch, '/api/v2/media', { method: 'POST', body: form({ file: p.imageFile, description: p.title }) });
+      for (let i = 0; i < 15 && !m.url; i++) { await sleep(1000); m = await this.api(ch, '/api/v1/media/' + m.id); }
+      mediaIds = [m.id];
+    } else if (p.removeImage) mediaIds = [];
+    if (ref.id) {
+      step('Updating post');
+      const r = await this.api(ch, '/api/v1/statuses/' + ref.id, { method: 'PUT', json: { status: text, media_ids: mediaIds } });
+      return { ...ref, url: r.url || ref.url, mediaIds, imageKey: p.imageKey || ref.imageKey, status: ref.status };
+    }
+    step(p.dateGmt ? 'Scheduling' : 'Posting');
+    const body = { status: text, media_ids: mediaIds, visibility: setting(ch, 'visibility') || 'public' };
+    if (p.scheduleAt) body.scheduled_at = new Date(p.scheduleAt).toISOString();
+    const r = await this.api(ch, '/api/v1/statuses', { method: 'POST', json: body });
+    if (r.scheduled_at) return { scheduledId: r.id, url: '', status: 'future', mediaIds, imageKey: p.imageKey };
+    return { id: r.id, url: r.url, status: 'publish', mediaIds, imageKey: p.imageKey };
+  },
+  async remove(ch, ref) {
+    if (ref.scheduledId) return this.api(ch, '/api/v1/scheduled_statuses/' + ref.scheduledId, { method: 'DELETE' });
+    if (ref.id) return this.api(ch, '/api/v1/statuses/' + ref.id, { method: 'DELETE' });
+  },
+  describe: ch => hostOf(ch.cfg.instance) + ' · ' + (ch.cfg.limit || 500) + ' characters',
+};
+
+/* ---------- Meta: Facebook page, Instagram, Threads ---------- */
+const graph = (ch, host = 'https://graph.facebook.com') => host + '/' + (setting(ch, 'version') || GRAPH_V) + '/';
+const graphVersionSetting = { key: 'version', label: 'Graph API version', type: 'text', default: GRAPH_V, mono: true, help: 'Only change this if Meta tells you the version is no longer supported.' };
+
+const FacebookPage = {
+  label: 'Facebook page', abbr: 'FB', hue: 221, group: 'social', canSchedule: true,
+  intro: 'Posts to a Facebook page you manage. Needs a page access token from a Meta developer app. Personal profiles and groups can’t be posted to; use “Share by hand” for those.',
+  fields: [
+    { key: 'pageId', label: 'Page ID', type: 'text', mono: true, help: 'Find it on the page under About → Page transparency, or in Graph API Explorer with <code>me/accounts</code>.' },
+    { key: 'token', label: 'Page access token', type: 'password', mono: true, secret: true },
+  ],
+  steps: [
+    'Create an app at <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com/apps</a> (type Business).',
+    'Open <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener">Graph API Explorer</a>, pick the app, add <code>pages_manage_posts</code> and <code>pages_read_engagement</code>, and generate a token.',
+    'Under <b>User or Page</b>, choose your page to get a page token.',
+    'Make it long-lived in the <a href="https://developers.facebook.com/tools/debug/accesstoken/" target="_blank" rel="noopener">Access Token Debugger</a> (Extend access token), then paste it below.',
+  ],
+  settings: [
+    { key: 'link', label: 'Include the link', type: 'checkbox', default: true },
+    { key: 'hashtags', label: 'Add tags as hashtags', type: 'checkbox', default: false },
+    graphVersionSetting,
+  ],
+  async connect(v) {
+    const ch = { type: 'facebook', cfg: { pageId: String(v.pageId || '').trim(), token: String(v.token || '').trim() }, settings: {} };
+    if (!ch.cfg.pageId || !ch.cfg.token) throw new Error('Enter the page ID and the page access token.');
+    const pg = await http(graph(ch) + encodeURIComponent(ch.cfg.pageId) + '?fields=name&access_token=' + encodeURIComponent(ch.cfg.token));
+    return { ...ch, name: v.name || pg.name, message: 'Connected to ' + pg.name, same: c => c.type === 'facebook' && c.cfg.pageId === ch.cfg.pageId };
+  },
+  async test(ch) { const pg = await http(graph(ch) + encodeURIComponent(ch.cfg.pageId) + '?fields=name&access_token=' + encodeURIComponent(ch.cfg.token)); return 'Connected to ' + pg.name; },
+  async publish(ch, p, ref, step, ctx) {
+    const withImage = !!p.imageFile;
+    const { text } = socialText(ch, p, ctx, { link: setting(ch, 'link') && (withImage || !ctx.link || !!ref.id), hashtags: setting(ch, 'hashtags') });
+    const t = ch.cfg.token;
+    if (ref.id) {
+      step('Updating post');
+      await http(graph(ch) + ref.id, { method: 'POST', body: form({ message: text, access_token: t }) });
+      return { ...ref };
+    }
+    const sched = p.scheduleAt ? { published: 'false', scheduled_publish_time: String(Math.floor(p.scheduleAt / 1000)) } : {};
+    if (p.scheduleAt && p.scheduleAt - Date.now() < 11 * 60e3) throw new Error('Facebook needs at least 10 minutes’ notice to schedule a post.');
+    if (withImage) {
+      step('Uploading image');
+      const r = await http(graph(ch) + ch.cfg.pageId + '/photos', { method: 'POST', body: form({ source: p.imageFile, message: text, access_token: t, ...sched }) });
+      const id = r.post_id || r.id;
+      return { id, url: 'https://www.facebook.com/' + id, status: p.scheduleAt ? 'future' : 'publish' };
+    }
+    step(p.scheduleAt ? 'Scheduling' : 'Posting');
+    const r = await http(graph(ch) + ch.cfg.pageId + '/feed', { method: 'POST', body: form({ message: text, link: setting(ch, 'link') ? ctx.link : '', access_token: t, ...sched }) });
+    return { id: r.id, url: 'https://www.facebook.com/' + r.id, status: p.scheduleAt ? 'future' : 'publish' };
+  },
+  async remove(ch, ref) { if (ref.id) await http(graph(ch) + ref.id + '?access_token=' + encodeURIComponent(ch.cfg.token), { method: 'DELETE' }); },
+  describe: ch => 'Page ' + ch.cfg.pageId,
+};
+
+const Instagram = {
+  label: 'Instagram', abbr: 'IG', hue: 330, group: 'social', limit: 2200,
+  intro: 'Needs a professional (Business or Creator) account. Every post needs an image, and Instagram fetches it from your website, so include a WordPress site when you send. Captions can’t be edited or deleted through the API.',
+  fields: [
+    { key: 'login', label: 'How you got the token', type: 'select', options: [['facebook', 'Facebook login (page token)'], ['instagram', 'Instagram login']] },
+    { key: 'igId', label: 'Instagram account ID', type: 'text', mono: true, optional: true, help: 'Facebook login: from <code>{page-id}?fields=instagram_business_account</code> in Graph API Explorer. Instagram login: leave empty.' },
+    { key: 'token', label: 'Access token', type: 'password', mono: true, secret: true },
+  ],
+  steps: [
+    'Connect the Instagram account to your Facebook page (Instagram: <b>Settings → Account type and tools</b>).',
+    'In your Meta app, add the <b>Instagram</b> product and generate a token with <code>instagram_content_publish</code> (or use the page token from Facebook with that permission added).',
+    'Paste the token, and the account ID if you used Facebook login.',
+  ],
+  settings: [
+    { key: 'hashtags', label: 'Add tags as hashtags', type: 'checkbox', default: true },
+    { key: 'link', label: 'Include the link (not clickable on Instagram)', type: 'checkbox', default: false },
+    graphVersionSetting,
+  ],
+  base(ch) { return graph(ch, ch.cfg.login === 'instagram' ? 'https://graph.instagram.com' : 'https://graph.facebook.com'); },
+  id(ch) { return ch.cfg.igId || 'me'; },
+  async connect(v) {
+    const ch = { type: 'instagram', cfg: { login: v.login || 'facebook', igId: String(v.igId || '').trim(), token: String(v.token || '').trim() } };
+    if (!ch.cfg.token) throw new Error('Enter the access token.');
+    if (ch.cfg.login === 'facebook' && !ch.cfg.igId) throw new Error('With Facebook login, the Instagram account ID is needed.');
+    const me = await http(this.base(ch) + this.id(ch) + '?fields=username&access_token=' + encodeURIComponent(ch.cfg.token));
+    return { ...ch, name: v.name || '@' + me.username, message: 'Connected as @' + me.username, same: c => c.type === 'instagram' && c.cfg.igId === ch.cfg.igId && c.cfg.token === ch.cfg.token };
+  },
+  async test(ch) { const me = await http(this.base(ch) + this.id(ch) + '?fields=username&access_token=' + encodeURIComponent(ch.cfg.token)); return 'Connected as @' + me.username; },
+  async publish(ch, p, ref, step, ctx) {
+    if (ref.id) return { ...ref, unchanged: true, note: 'Instagram captions can’t be changed from here. The post is unchanged.' };
+    if (!ctx.imageUrl) throw new Error('Instagram needs an image with a public address. Add an image and include a WordPress site in the same send.');
+    const { text } = socialText(ch, p, ctx, { limit: 2200, link: setting(ch, 'link'), hashtags: setting(ch, 'hashtags') });
+    const t = ch.cfg.token, base = this.base(ch);
+    step('Preparing image');
+    const c = await http(base + this.id(ch) + '/media', { method: 'POST', body: form({ image_url: ctx.imageUrl, caption: text, access_token: t }) });
+    for (let i = 0; i < 20; i++) {
+      const s = await http(base + c.id + '?fields=status_code&access_token=' + encodeURIComponent(t)).catch(() => ({}));
+      if (s.status_code === 'FINISHED' || !s.status_code) break;
+      if (s.status_code === 'ERROR') throw new Error('Instagram could not process the image. Use a JPEG between 320 and 1440 pixels wide.');
+      await sleep(1500);
+    }
+    step('Posting');
+    const r = await http(base + this.id(ch) + '/media_publish', { method: 'POST', body: form({ creation_id: c.id, access_token: t }) });
+    const info = await http(base + r.id + '?fields=permalink&access_token=' + encodeURIComponent(t)).catch(() => ({}));
+    return { id: r.id, url: info.permalink || '', status: 'publish' };
+  },
+  async remove() { throw new Error('Instagram doesn’t allow deleting posts from here. Delete it in the Instagram app.'); },
+  describe: ch => ch.cfg.login === 'instagram' ? 'Instagram login' : 'Account ' + ch.cfg.igId,
+};
+
+const Threads = {
+  label: 'Threads', abbr: 'TH', hue: 0, sat: '0%', group: 'social', limit: 500,
+  intro: 'Posts text or text with an image. Images are fetched from your website, so include a WordPress site when you send one.',
+  fields: [{ key: 'token', label: 'Threads access token', type: 'password', mono: true, secret: true }],
+  steps: [
+    'In your Meta app, add the <b>Access the Threads API</b> use case with <code>threads_basic</code> and <code>threads_content_publish</code>.',
+    'Add yourself as a Threads tester and accept the invite in Threads: <b>Settings → Account → Website permissions</b>.',
+    'Generate a user token in the app’s Threads settings and paste it below.',
+  ],
+  settings: [
+    { key: 'link', label: 'Include the link', type: 'checkbox', default: true },
+    { key: 'hashtags', label: 'Add the first tag as a topic', type: 'checkbox', default: false },
+  ],
+  base: 'https://graph.threads.net/v1.0/',
+  async connect(v) {
+    const ch = { type: 'threads', cfg: { token: String(v.token || '').trim() } };
+    if (!ch.cfg.token) throw new Error('Enter the access token.');
+    const me = await http(this.base + 'me?fields=username&access_token=' + encodeURIComponent(ch.cfg.token));
+    return { ...ch, name: v.name || '@' + me.username, message: 'Connected as @' + me.username, same: c => c.type === 'threads' && c.cfg.token === ch.cfg.token };
+  },
+  async test(ch) { const me = await http(this.base + 'me?fields=username&access_token=' + encodeURIComponent(ch.cfg.token)); return 'Connected as @' + me.username; },
+  async publish(ch, p, ref, step, ctx) {
+    if (ref.id) return { ...ref, unchanged: true, note: 'Threads posts can’t be edited from here. The post is unchanged.' };
+    const post = setting(ch, 'hashtags') ? { ...p, tags: p.tags.slice(0, 1) } : p;
+    const { text } = socialText(ch, post, ctx, { limit: 500, link: setting(ch, 'link'), hashtags: setting(ch, 'hashtags') });
+    const t = ch.cfg.token, img = p.imageFile || (!p.removeImage && ctx.imageUrl) ? ctx.imageUrl : '';
+    step('Preparing');
+    const c = await http(this.base + 'me/threads', { method: 'POST', body: form({ media_type: img ? 'IMAGE' : 'TEXT', image_url: img, text, access_token: t }) });
+    for (let i = 0; i < 20; i++) {
+      const s = await http(this.base + c.id + '?fields=status&access_token=' + encodeURIComponent(t)).catch(() => ({}));
+      if (s.status === 'FINISHED' || !s.status) break;
+      if (s.status === 'ERROR') throw new Error('Threads could not process the post.');
+      await sleep(1500);
+    }
+    step('Posting');
+    const r = await http(this.base + 'me/threads_publish', { method: 'POST', body: form({ creation_id: c.id, access_token: t }) });
+    const info = await http(this.base + r.id + '?fields=permalink&access_token=' + encodeURIComponent(t)).catch(() => ({}));
+    return { id: r.id, url: info.permalink || '', status: 'publish' };
+  },
+  async remove(ch, ref) { if (ref.id) await http(this.base + ref.id + '?access_token=' + encodeURIComponent(ch.cfg.token), { method: 'DELETE' }); },
+  describe: () => 'Threads profile',
+};
+
+/* ---------- Discord ---------- */
+const Discord = {
+  label: 'Discord', abbr: 'DC', hue: 235, group: 'social',
+  intro: 'Posts into a channel on your server through a webhook. Messages can be edited and deleted.',
+  fields: [{ key: 'webhook', label: 'Webhook URL', type: 'password', mono: true, secret: true, placeholder: 'https://discord.com/api/webhooks/…' }],
+  steps: [
+    'In Discord, open <b>Server Settings → Integrations → Webhooks</b>.',
+    'Press <b>New Webhook</b>, choose the channel, and name it.',
+    'Press <b>Copy Webhook URL</b> and paste it below.',
+  ],
+  settings: [
+    { key: 'style', label: 'Message style', type: 'select', default: 'embed', options: [['embed', 'Card with title, text and image'], ['plain', 'Plain text and link']] },
+    { key: 'mention', label: 'Text before the post', type: 'text', default: '', placeholder: 'e.g. New video is up!', help: 'Optional. Shown above the card.' },
+  ],
+  async connect(v) {
+    const url = String(v.webhook || '').trim();
+    if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(url)) throw new Error('That doesn’t look like a Discord webhook URL.');
+    const w = await http(url);
+    return { type: 'discord', cfg: { webhook: url }, name: v.name || w.name || 'Discord', message: 'Webhook “' + w.name + '” is ready', same: c => c.type === 'discord' && c.cfg.webhook === url };
+  },
+  async test(ch) { const w = await http(ch.cfg.webhook); return 'Webhook “' + w.name + '” is ready'; },
+  message(ch, p, ctx, hasFile) {
+    if (setting(ch, 'style') === 'plain') {
+      return { content: cutGraphemes([setting(ch, 'mention'), '**' + p.title + '**', p.social, ctx.link].filter(Boolean).join('\n\n'), 2000) };
+    }
+    const embed = { title: cutGraphemes(p.title, 256), description: cutGraphemes(p.social || p.excerpt || '', 4000), color: 0xE8951C };
+    if (ctx.link) embed.url = ctx.link;
+    if (hasFile) embed.image = { url: 'attachment://' + hasFile };
+    else if (ctx.imageUrl) embed.image = { url: ctx.imageUrl };
+    return { content: setting(ch, 'mention') || '', embeds: [embed] };
+  },
+  async publish(ch, p, ref, step, ctx) {
+    if (ref.id) {
+      step('Updating message');
+      const body = this.message(ch, p, ctx, null);
+      if (ref.fileName && !p.removeImage && body.embeds) body.embeds[0].image = { url: 'attachment://' + ref.fileName };
+      await http(ch.cfg.webhook + '/messages/' + ref.id, { method: 'PATCH', json: body });
+      return { ...ref };
+    }
+    step('Posting');
+    let fileName = null, body;
+    if (p.imageFile && !ctx.imageUrl) {
+      const f = await shrinkImage(p.imageFile, 8e6);
+      fileName = (f.name || 'image.jpg').replace(/[^\w.\-]+/g, '-');
+      const fd = new FormData();
+      fd.append('payload_json', JSON.stringify(this.message(ch, p, ctx, fileName)));
+      fd.append('files[0]', f, fileName);
+      body = { method: 'POST', body: fd };
+    } else body = { method: 'POST', json: this.message(ch, p, ctx, null) };
+    const r = await http(ch.cfg.webhook + '?wait=true', body);
+    return { id: r.id, url: r.guild_id ? `https://discord.com/channels/${r.guild_id}/${r.channel_id}/${r.id}` : '', fileName, status: 'publish' };
+  },
+  async remove(ch, ref) { if (ref.id) await http(ch.cfg.webhook + '/messages/' + ref.id, { method: 'DELETE' }); },
+  describe: () => 'Webhook',
+};
+
+/* ---------- Telegram ---------- */
+const Telegram = {
+  label: 'Telegram', abbr: 'TG', hue: 199, group: 'social',
+  intro: 'Posts to a Telegram channel or group through your own bot. Messages can be edited, and deleted within 48 hours.',
+  fields: [
+    { key: 'token', label: 'Bot token', type: 'password', mono: true, secret: true, placeholder: '123456:ABC-…' },
+    { key: 'chat', label: 'Channel', type: 'text', mono: true, placeholder: '@larpforge', help: 'The channel’s @name, or its numeric ID for private channels and groups.' },
+  ],
+  steps: [
+    'Message <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> in Telegram, send <code>/newbot</code> and follow the steps.',
+    'Copy the bot token it gives you.',
+    'Add the bot to your channel as an administrator that can post messages.',
+  ],
+  settings: [
+    { key: 'link', label: 'Include the link', type: 'checkbox', default: true },
+    { key: 'hashtags', label: 'Add tags as hashtags', type: 'checkbox', default: false },
+    { key: 'silent', label: 'Send without notification sound', type: 'checkbox', default: false },
+  ],
+  api(ch, method, body) { return http('https://api.telegram.org/bot' + ch.cfg.token + '/' + method, { method: 'POST', ...(body instanceof FormData ? { body } : { json: body }) }).then(r => r.result); },
+  async connect(v) {
+    const ch = { type: 'telegram', cfg: { token: String(v.token || '').trim(), chat: String(v.chat || '').trim() } };
+    if (!ch.cfg.token || !ch.cfg.chat) throw new Error('Enter the bot token and the channel.');
+    const me = await this.api(ch, 'getMe', {});
+    const chat = await this.api(ch, 'getChat', { chat_id: ch.cfg.chat });
+    return { ...ch, name: v.name || chat.title || ch.cfg.chat, message: `@${me.username} can reach ${chat.title || ch.cfg.chat}`, same: c => c.type === 'telegram' && c.cfg.chat === ch.cfg.chat };
+  },
+  async test(ch) { const chat = await this.api(ch, 'getChat', { chat_id: ch.cfg.chat }); return 'Ready to post in ' + (chat.title || ch.cfg.chat); },
+  html(ch, p, ctx, limit) {
+    const { text } = socialText(ch, { ...p, social: p.social || '' }, ctx, { limit: limit - p.title.length - 4, link: setting(ch, 'link'), hashtags: setting(ch, 'hashtags') });
+    return '<b>' + esc(p.title) + '</b>\n\n' + esc(text);
+  },
+  async publish(ch, p, ref, step, ctx) {
+    const silent = !!setting(ch, 'silent');
+    if (ref.id) {
+      step('Updating message');
+      if (ref.photo) await this.api(ch, 'editMessageCaption', { chat_id: ch.cfg.chat, message_id: ref.id, caption: this.html(ch, p, ctx, 1024), parse_mode: 'HTML' });
+      else await this.api(ch, 'editMessageText', { chat_id: ch.cfg.chat, message_id: ref.id, text: this.html(ch, p, ctx, 4096), parse_mode: 'HTML' });
+      return { ...ref };
+    }
+    step('Posting');
+    let m;
+    if (p.imageFile) {
+      const f = await shrinkImage(p.imageFile, 9.5e6);
+      m = await this.api(ch, 'sendPhoto', form({ chat_id: ch.cfg.chat, photo: f, caption: this.html(ch, p, ctx, 1024), parse_mode: 'HTML', disable_notification: silent ? 'true' : '' }));
+    } else {
+      m = await this.api(ch, 'sendMessage', { chat_id: ch.cfg.chat, text: this.html(ch, p, ctx, 4096), parse_mode: 'HTML', disable_notification: silent });
+    }
+    const user = m.chat?.username;
+    return { id: m.message_id, photo: !!p.imageFile, url: user ? `https://t.me/${user}/${m.message_id}` : '', status: 'publish' };
+  },
+  async remove(ch, ref) { if (ref.id) await this.api(ch, 'deleteMessage', { chat_id: ch.cfg.chat, message_id: ref.id }); },
+  describe: ch => ch.cfg.chat,
+};
+
+/* ---------- Video platforms: shared helpers ---------- */
+const tokenCache = {};
+const postForm = (url, obj) => http(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(Object.entries(obj).filter(([, v]) => v != null && v !== '')).toString() });
+const pageUrl = () => location.origin + location.pathname;
+const hasMode = (ch, m) => (ch.cfg?.mode || 'api') === m;
+
+/** XMLHttpRequest wrapper, for uploads that report progress and response headers. */
+function xhrSend(url, { method = 'PUT', headers = {}, body, onProgress } = {}) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open(method, url);
+    for (const [k, v] of Object.entries(headers)) x.setRequestHeader(k, v);
+    if (onProgress && x.upload) x.upload.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    x.onload = () => {
+      let data = null; try { data = x.responseText ? JSON.parse(x.responseText) : null; } catch { data = x.responseText; }
+      if (x.status >= 200 && x.status < 300) resolve({ status: x.status, data, header: h => x.getResponseHeader(h) });
+      else reject(Object.assign(new Error(apiMessage(data) || 'HTTP ' + x.status), { status: x.status, data }));
+    };
+    x.onerror = () => reject(Object.assign(netError(url), { net: true }));
+    x.send(body);
+  });
+}
+const pct = (label, f) => label + ' ' + Math.round(f * 100) + '%';
+const modeField = (first, second) => ({ key: 'mode', label: 'How to post', type: 'select', options: [first, second] });
+const noAngles = s => String(s || '').replace(/[<>]/g, '');
+
+/* ---------- YouTube ---------- */
+const YT_SCOPE = 'https://www.googleapis.com/auth/youtube';
+const YouTube = {
+  label: 'YouTube', abbr: 'YT', hue: 2, group: 'video', limit: 5000,
+  needsVideo: ch => hasMode(ch, 'api'), canSchedule: ch => hasMode(ch, 'api'), canDraft: ch => hasMode(ch, 'api'),
+  intro: 'Uploads the video with title, description, tags and thumbnail, and can schedule it. Add each YouTube channel separately (LarpForge, LazyLarper, Shorts…).',
+  fields: [
+    modeField(['api', 'Upload automatically'], ['manual', 'Share by hand (no setup)']),
+    { key: 'clientId', label: 'Client ID', type: 'text', mono: true, when: 'api', placeholder: '….apps.googleusercontent.com' },
+    { key: 'clientSecret', label: 'Client secret', type: 'password', mono: true, secret: true, when: 'api' },
+    { key: 'refreshToken', label: 'Refresh token', type: 'password', mono: true, secret: true, when: 'api', optional: true, help: 'From OAuth Playground (step 5). Not needed if you use “Log in with Google”.' },
+  ],
+  steps: {
+    api: [
+      'In <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">Google Cloud Console</a>, create a project and enable <b>YouTube Data API v3</b>.',
+      'Under <b>Google Auth Platform → Audience</b>, choose External and press <b>Publish app</b>. In “Testing” mode the login stops working after 7 days.',
+      'Under <b>Clients</b>, create an OAuth client of type <b>Web application</b> with the redirect URI <code>https://developers.google.com/oauthplayground</code>{{redirect}}.',
+      'Paste the client ID and secret below.',
+      'Get a refresh token: open <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noopener">OAuth Playground</a>, press the gear and tick <b>Use your own OAuth credentials</b>. In Step 1 type <code>https://www.googleapis.com/auth/youtube</code>, press Authorize and <b>pick the channel</b>. In Step 2 press <b>Exchange</b> and copy the refresh token.',
+    ],
+    manual: [],
+  },
+  settings: [
+    { key: 'privacy', label: 'Visibility', type: 'select', default: 'public', when: 'api', options: [['public', 'Public'], ['unlisted', 'Unlisted'], ['private', 'Private']] },
+    { key: 'category', label: 'Category', type: 'select', default: '22', when: 'api', options: [['22', 'People & Blogs'], ['24', 'Entertainment'], ['26', 'Howto & Style'], ['27', 'Education'], ['20', 'Gaming'], ['1', 'Film & Animation'], ['23', 'Comedy']] },
+    { key: 'shorts', label: 'Add #Shorts to the title', type: 'checkbox', default: false },
+    { key: 'link', label: 'Add the link to the description', type: 'checkbox', default: true },
+    { key: 'hashtags', label: 'Add tags as hashtags in the description', type: 'checkbox', default: true },
+    { key: 'madeForKids', label: 'Made for kids', type: 'checkbox', default: false, when: 'api' },
+  ],
+  oauth: {
+    label: 'Log in with Google', need: ['clientId', 'clientSecret'],
+    url: (v, redirect, state) => 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({ client_id: v.clientId.trim(), redirect_uri: redirect, response_type: 'code', scope: YT_SCOPE, access_type: 'offline', prompt: 'consent select_account', state }),
+    async exchange(v, code, redirect) {
+      const r = await postForm('https://oauth2.googleapis.com/token', { code, client_id: v.clientId.trim(), client_secret: v.clientSecret.trim(), redirect_uri: redirect, grant_type: 'authorization_code' });
+      if (!r.refresh_token) throw new Error('Google didn’t return a refresh token. Remove the app under “Third-party apps” in your Google account and log in again.');
+      return { refreshToken: r.refresh_token };
+    },
+  },
+  async token(ch, fresh) {
+    const k = ch.id || ch.cfg.refreshToken, c = tokenCache[k];
+    if (c && !fresh && c.exp > Date.now()) return c.token;
+    let r;
+    try { r = await postForm('https://oauth2.googleapis.com/token', { client_id: ch.cfg.clientId, client_secret: ch.cfg.clientSecret, refresh_token: ch.cfg.refreshToken, grant_type: 'refresh_token' }); }
+    catch (e) {
+      if (e.data?.error === 'invalid_grant') throw new Error('The Google login has expired or was revoked. Log in again. If your Google app is still in “Testing”, publish it so logins don’t expire after 7 days.');
+      if (e.data?.error === 'invalid_client') throw new Error('Google doesn’t recognise the client ID and secret.');
+      throw e;
+    }
+    tokenCache[k] = { token: r.access_token, exp: Date.now() + ((r.expires_in || 3600) - 120) * 1000 };
+    return r.access_token;
+  },
+  async api(ch, path, opts = {}) {
+    const go = async fresh => http('https://www.googleapis.com/youtube/v3/' + path, { ...opts, headers: { Authorization: 'Bearer ' + await this.token(ch, fresh), ...(opts.headers || {}) } });
+    try { return await go(false); } catch (e) { if (e.status === 401) return go(true); throw e; }
+  },
+  async channel(ch) {
+    const r = await this.api(ch, 'channels?part=snippet&mine=true');
+    if (!r?.items?.length) throw new Error('This Google login has no YouTube channel. When you log in, pick the channel you want to post to.');
+    return r.items[0];
+  },
+  async connect(v) {
+    if (v.mode === 'manual') return { type: 'youtube', cfg: { mode: 'manual' }, name: v.name || 'YouTube', message: 'Ready to share by hand', same: () => false };
+    const ch = { type: 'youtube', cfg: { mode: 'api', clientId: String(v.clientId || '').trim(), clientSecret: String(v.clientSecret || '').trim(), refreshToken: String(v.refreshToken || '').trim() } };
+    if (!ch.cfg.clientId || !ch.cfg.clientSecret) throw new Error('Enter the client ID and client secret from Google Cloud.');
+    if (!ch.cfg.refreshToken) throw new Error('Paste a refresh token from OAuth Playground' + (canOneClick() ? ', or press “Log in with Google”.' : '.'));
+    const me = await this.channel(ch);
+    ch.cfg.channelId = me.id; ch.cfg.channelTitle = me.snippet.title;
+    return { ...ch, name: v.name || me.snippet.title, message: 'Connected to ' + me.snippet.title, same: c => c.type === 'youtube' && c.cfg.channelId === me.id };
+  },
+  async test(ch) { if (hasMode(ch, 'manual')) return 'Ready to share by hand'; const me = await this.channel(ch); return 'Connected to ' + me.snippet.title; },
+  texts(ch, p, ctx) {
+    const suffix = setting(ch, 'shorts') && !/#shorts/i.test(p.title) ? ' #Shorts' : '';
+    const title = cutGraphemes(noAngles(p.title), 100 - suffix.length) + suffix;
+    const description = noAngles(socialText(ch, p, ctx, { limit: 5000, link: setting(ch, 'link'), hashtags: setting(ch, 'hashtags') }).text);
+    const tags = []; let len = 0;
+    for (const t of p.tags.map(noAngles)) { len += t.length + (t.includes(' ') ? 3 : 1); if (len > 480) break; tags.push(t); }
+    return { title, description, tags };
+  },
+  async thumb(ch, id, file) {
+    const f = await shrinkImage(file, 2e6, 1280);
+    return http('https://www.googleapis.com/upload/youtube/v3/thumbnails/set?uploadType=media&videoId=' + encodeURIComponent(id), { method: 'POST', headers: { Authorization: 'Bearer ' + await this.token(ch), 'Content-Type': f.type }, body: f });
+  },
+  async publish(ch, p, ref, step, ctx) {
+    const { title, description, tags } = this.texts(ch, p, ctx);
+    const manual = note => ({ manual: true, note, text: title + '\n\n' + description, copies: [{ label: 'Copy title', text: title }, { label: 'Copy description', text: description }], open: 'https://www.youtube.com/upload', openLabel: 'Open YouTube Studio' });
+    if (hasMode(ch, 'manual')) return manual();
+    const snippet = { title, description, tags, categoryId: setting(ch, 'category') || '22' };
+    try {
+      if (ref.id) {
+        step('Updating video');
+        await this.api(ch, 'videos?part=snippet', { method: 'PUT', json: { id: ref.id, snippet } });
+        let note = p.videoFile && p.videoKey !== ref.videoKey ? 'Title and description updated. YouTube can’t replace the video itself; upload it as a new broadcast if needed.' : '';
+        let thumbKey = ref.thumbKey;
+        if (p.imageFile && p.imageKey !== ref.thumbKey) {
+          step('Updating thumbnail');
+          try { await this.thumb(ch, ref.id, p.imageFile); thumbKey = p.imageKey; }
+          catch (e) { note = 'Updated, but the thumbnail was refused: ' + friendlyError(e); }
+        }
+        return { ...ref, thumbKey, note };
+      }
+      const status = { privacyStatus: setting(ch, 'privacy') || 'public', selfDeclaredMadeForKids: !!setting(ch, 'madeForKids') };
+      if (p.mode === 'draft') status.privacyStatus = 'private';
+      if (p.scheduleAt) { status.privacyStatus = 'private'; status.publishAt = new Date(p.scheduleAt).toISOString(); }
+      step('Starting upload');
+      const v = p.videoFile;
+      const start = await xhrSend('https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + await this.token(ch), 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': v.type || 'video/*', 'X-Upload-Content-Length': String(v.size) },
+        body: JSON.stringify({ snippet, status }),
+      });
+      const loc = start.header('Location');
+      if (!loc) throw new Error('YouTube did not return an upload address.');
+      const up = await xhrSend(loc, { method: 'PUT', headers: { 'Content-Type': v.type || 'application/octet-stream' }, body: v.slice(0, v.size, v.type), onProgress: f => step(pct('Uploading video', f)) });
+      const id = up.data?.id;
+      if (!id) throw new Error('YouTube accepted the upload but returned no video ID. Check YouTube Studio.');
+      let note = '', thumbKey = '';
+      if (p.imageFile) {
+        step('Setting thumbnail');
+        try { await this.thumb(ch, id, p.imageFile); thumbKey = p.imageKey; }
+        catch (e) { note = 'Uploaded, but the thumbnail was refused: ' + friendlyError(e) + ' Custom thumbnails need a verified channel.'; }
+      }
+      const state = p.scheduleAt ? 'future' : status.privacyStatus === 'public' ? 'publish' : status.privacyStatus;
+      return { id, url: 'https://youtu.be/' + id, status: state, videoKey: p.videoKey, thumbKey, note };
+    } catch (e) {
+      if (e.net && !ref.id) return manual('YouTube didn’t accept the upload from this page, so it’s ready to upload by hand instead. Hosting the app on https usually fixes this.');
+      throw e;
+    }
+  },
+  async remove(ch, ref) { if (ref?.id && hasMode(ch, 'api')) await this.api(ch, 'videos?id=' + encodeURIComponent(ref.id), { method: 'DELETE' }); },
+  describe: ch => hasMode(ch, 'manual') ? 'Share by hand' : 'Uploads · ' + ({ public: 'public', unlisted: 'unlisted', private: 'private' }[setting(ch, 'privacy')] || 'public') + (setting(ch, 'shorts') ? ' · Shorts' : ''),
+};
+
+/* ---------- TikTok ---------- */
+const TT_SIZE = 1024 * 1024;
+const TikTok = {
+  label: 'TikTok', abbr: 'TT', hue: 176, group: 'video', limit: 2200,
+  needsVideo: ch => hasMode(ch, 'api'), canSchedule: false, canDraft: false,
+  intro: '“Share by hand” works right away: the caption is ready to copy and TikTok’s upload page opens. Posting automatically needs a TikTok developer app, and until TikTok approves the app, its videos are private.',
+  fields: [
+    modeField(['manual', 'Share by hand (no setup)'], ['api', 'Post automatically (developer app)']),
+    { key: 'clientKey', label: 'Client key', type: 'text', mono: true, when: 'api' },
+    { key: 'clientSecret', label: 'Client secret', type: 'password', mono: true, secret: true, when: 'api' },
+    { key: 'refreshToken', label: 'Refresh token', type: 'password', mono: true, secret: true, when: 'api', optional: true, help: 'Only if you already have one. Otherwise use “Log in with TikTok”.' },
+  ],
+  steps: {
+    api: [
+      'Create an app at <a href="https://developers.tiktok.com/apps" target="_blank" rel="noopener">developers.tiktok.com</a>. Add <b>Login Kit</b> and <b>Content Posting API</b> with <b>Direct Post</b> turned on, and the scopes <code>user.info.basic</code> and <code>video.publish</code>.',
+      'TikTok only sends you back to an https address, so this app must be hosted on https. Add its address as a redirect URI in Login Kit{{redirect}}.',
+      'Paste the client key and secret below and press <b>Log in with TikTok</b>.',
+      'Until TikTok approves your app in its review, videos are posted as private. Make them public in the TikTok app.',
+    ],
+    manual: [],
+  },
+  settings: [
+    { key: 'privacy', label: 'Who can see it', type: 'select', default: 'PUBLIC_TO_EVERYONE', when: 'api', options: [['PUBLIC_TO_EVERYONE', 'Everyone'], ['FOLLOWER_OF_CREATOR', 'Followers'], ['MUTUAL_FOLLOW_FRIENDS', 'Friends'], ['SELF_ONLY', 'Only me']] },
+    { key: 'noComments', label: 'Turn off comments', type: 'checkbox', default: false, when: 'api' },
+    { key: 'hashtags', label: 'Add tags as hashtags', type: 'checkbox', default: true },
+    { key: 'link', label: 'Include the link (not clickable on TikTok)', type: 'checkbox', default: false },
+  ],
+  base: 'https://open.tiktokapis.com/v2/',
+  oauth: {
+    label: 'Log in with TikTok', need: ['clientKey', 'clientSecret'],
+    url: (v, redirect, state) => 'https://www.tiktok.com/v2/auth/authorize/?' + new URLSearchParams({ client_key: v.clientKey.trim(), scope: 'user.info.basic,video.publish', response_type: 'code', redirect_uri: redirect, state }),
+    async exchange(v, code, redirect) {
+      const r = await postForm(TikTok.base + 'oauth/token/', { client_key: v.clientKey.trim(), client_secret: v.clientSecret.trim(), code, grant_type: 'authorization_code', redirect_uri: redirect });
+      if (r.error || !r.refresh_token) throw new Error(r.error_description || r.error || 'TikTok didn’t return a login.');
+      return { refreshToken: r.refresh_token };
+    },
+  },
+  async token(ch, fresh) {
+    const k = ch.id || ch.cfg.refreshToken, c = tokenCache[k];
+    if (c && !fresh && c.exp > Date.now()) return c.token;
+    const r = await postForm(this.base + 'oauth/token/', { client_key: ch.cfg.clientKey, client_secret: ch.cfg.clientSecret, grant_type: 'refresh_token', refresh_token: ch.cfg.refreshToken });
+    if (r.error || !r.access_token) throw new Error((r.error_description || r.error || 'TikTok refused the login') + '. Log in with TikTok again.');
+    if (r.refresh_token && r.refresh_token !== ch.cfg.refreshToken) { ch.cfg.refreshToken = r.refresh_token; if (ch.id) saveChannels(); }
+    tokenCache[k] = { token: r.access_token, exp: Date.now() + ((r.expires_in || 86400) - 300) * 1000 };
+    return r.access_token;
+  },
+  async api(ch, path, json) {
+    const r = await http(this.base + path, { method: 'POST', headers: { Authorization: 'Bearer ' + await this.token(ch), 'Content-Type': 'application/json; charset=UTF-8' }, body: JSON.stringify(json || {}) });
+    if (r?.error?.code && r.error.code !== 'ok') throw new Error(r.error.message || r.error.code);
+    return r?.data || {};
+  },
+  async connect(v) {
+    if (v.mode !== 'api') return { type: 'tiktok', cfg: { mode: 'manual' }, name: v.name || 'TikTok', message: 'Ready to share by hand', same: () => false };
+    const ch = { type: 'tiktok', cfg: { mode: 'api', clientKey: String(v.clientKey || '').trim(), clientSecret: String(v.clientSecret || '').trim(), refreshToken: String(v.refreshToken || '').trim() } };
+    if (!ch.cfg.clientKey || !ch.cfg.clientSecret) throw new Error('Enter the client key and secret from your TikTok app.');
+    if (!ch.cfg.refreshToken) throw new Error(canOneClick() ? 'Press “Log in with TikTok” to connect.' : 'TikTok needs a login. Host this app on https and use “Log in with TikTok”, or choose “Share by hand”.');
+    const info = await this.api(ch, 'post/publish/creator_info/query/');
+    ch.cfg.username = info.creator_username || '';
+    return { ...ch, name: v.name || '@' + (info.creator_username || info.creator_nickname), message: 'Connected as @' + (info.creator_username || info.creator_nickname), same: c => c.type === 'tiktok' && c.cfg.username === ch.cfg.username };
+  },
+  async test(ch) { if (hasMode(ch, 'manual')) return 'Ready to share by hand'; const info = await this.api(ch, 'post/publish/creator_info/query/'); return 'Connected as @' + (info.creator_username || info.creator_nickname); },
+  async publish(ch, p, ref, step, ctx) {
+    const caption = socialText(ch, p, ctx, { limit: 2200, link: setting(ch, 'link'), hashtags: setting(ch, 'hashtags') }).text;
+    const manual = note => ({ manual: true, note, text: caption, copies: [{ label: 'Copy caption', text: caption }], open: 'https://www.tiktok.com/tiktokstudio/upload', openLabel: 'Open TikTok upload' });
+    if (hasMode(ch, 'manual')) return manual();
+    if (ref.publishId) return { ...ref, note: 'TikTok posts can’t be edited from here. The post is unchanged.' };
+    try { return await this.post(ch, p, caption, step); }
+    catch (e) { if (e.net) return manual('TikTok didn’t accept the upload from this page, so it’s ready to post by hand instead.'); throw e; }
+  },
+  async post(ch, p, caption, step) {
+    step('Checking account');
+    const info = await this.api(ch, 'post/publish/creator_info/query/');
+    if (info.creator_username) ch.cfg.username = info.creator_username;
+    const want = setting(ch, 'privacy') || 'PUBLIC_TO_EVERYONE', opts = info.privacy_level_options || [];
+    const privacy = !opts.length || opts.includes(want) ? want : opts.includes('SELF_ONLY') ? 'SELF_ONLY' : opts[0];
+    const f = p.videoFile, size = f.size;
+    const chunk = size <= 64 * TT_SIZE ? size : 10 * TT_SIZE;
+    const count = size <= 64 * TT_SIZE ? 1 : Math.floor(size / chunk);
+    step('Starting upload');
+    const init = await this.api(ch, 'post/publish/video/init/', {
+      post_info: { title: caption, privacy_level: privacy, disable_comment: !!setting(ch, 'noComments'), disable_duet: false, disable_stitch: false, video_cover_timestamp_ms: 1000 },
+      source_info: { source: 'FILE_UPLOAD', video_size: size, chunk_size: chunk, total_chunk_count: count },
+    });
+    for (let i = 0; i < count; i++) {
+      const a = i * chunk, b = i === count - 1 ? size : a + chunk;
+      await xhrSend(init.upload_url, { method: 'PUT', headers: { 'Content-Type': f.type || 'video/mp4', 'Content-Range': `bytes ${a}-${b - 1}/${size}` }, body: f.slice(a, b), onProgress: x => step(pct('Uploading video', (a + x * (b - a)) / size)) });
+    }
+    step('TikTok is processing the video');
+    let st = {};
+    for (let i = 0; i < 40; i++) {
+      await sleep(3000);
+      st = await this.api(ch, 'post/publish/status/fetch/', { publish_id: init.publish_id }).catch(() => ({}));
+      if (st.status === 'PUBLISH_COMPLETE' || st.status === 'FAILED') break;
+    }
+    if (st.status === 'FAILED') throw new Error('TikTok rejected the video (' + (st.fail_reason || 'no reason given') + ').');
+    const postId = (st.publicaly_available_post_id || [])[0], user = ch.cfg.username;
+    const done = st.status === 'PUBLISH_COMPLETE';
+    let note = '';
+    if (privacy !== want) note = 'Posted as private, because TikTok hasn’t approved your app for public posts yet. Make it public in the TikTok app.';
+    else if (!done) note = 'Uploaded. TikTok is still processing it; it shows on your profile shortly.';
+    return { publishId: init.publish_id, id: postId || '', url: user ? (postId ? `https://www.tiktok.com/@${user}/video/${postId}` : `https://www.tiktok.com/@${user}`) : '', status: !done ? 'processing' : privacy === 'SELF_ONLY' ? 'private' : 'publish', note };
+  },
+  async remove(ch) { if (hasMode(ch, 'api')) throw new Error('TikTok doesn’t allow deleting videos from here. Delete it in the TikTok app.'); },
+  describe: ch => hasMode(ch, 'manual') ? 'Share by hand' : 'Posts automatically' + (ch.cfg.username ? ' · @' + ch.cfg.username : ''),
+};
+
+/* ---------- Share by hand (networks without a browser API) ---------- */
+const NETWORKS = {
+  x: { label: 'X (Twitter)', abbr: 'X', hue: 0, sat: '0%', limit: 280, linkCost: 23, open: t => 'https://x.com/intent/post?text=' + encodeURIComponent(t) },
+  linkedin: { label: 'LinkedIn', abbr: 'IN', hue: 210, limit: 3000, open: t => 'https://www.linkedin.com/feed/?shareActive=true&text=' + encodeURIComponent(t) },
+  youtube: { label: 'YouTube community post', abbr: 'YT', hue: 2, limit: 5000, open: () => 'https://studio.youtube.com/' },
+  tiktok: { label: 'TikTok', abbr: 'TT', hue: 176, limit: 2200, hidden: true, open: () => 'https://www.tiktok.com/tiktokstudio/upload' },
+  fbgroup: { label: 'Facebook group', abbr: 'FG', hue: 221, limit: 60000, open: () => 'https://www.facebook.com/groups/' },
+  other: { label: 'Other', abbr: '··', hue: 35, limit: 0, open: () => '' },
+};
+const Manual = {
+  label: 'Share by hand', abbr: '↗', hue: 35, group: 'manual',
+  intro: 'For networks that don’t let a browser post for you (X, LinkedIn, YouTube community posts, Facebook groups). When you send, the text is made ready to copy and the right page opens with one click.',
+  fields: [
+    { key: 'network', label: 'Network', type: 'select', options: Object.entries(NETWORKS).filter(([, n]) => !n.hidden).map(([k, n]) => [k, n.label]) },
+    { key: 'name', label: 'Name', type: 'text', optional: true, placeholder: 'e.g. LarpForge on X' },
+    { key: 'openUrl', label: 'Page to open', type: 'url', optional: true, mono: true, placeholder: 'e.g. your group or channel page', help: 'Optional. Overrides the default page for this network.' },
+  ],
+  steps: [],
+  settings: [
+    { key: 'link', label: 'Include the link', type: 'checkbox', default: true },
+    { key: 'hashtags', label: 'Add tags as hashtags', type: 'checkbox', default: true },
+    { key: 'openUrl', label: 'Page to open', type: 'url', default: '', mono: true },
+  ],
+  net: ch => NETWORKS[ch.cfg.network] || NETWORKS.other,
+  async connect(v) {
+    const n = NETWORKS[v.network] || NETWORKS.other;
+    return { type: 'manual', cfg: { network: v.network || 'other' }, settings: { openUrl: v.openUrl ? normUrl(v.openUrl) : '' }, name: v.name || n.label, message: 'Ready', same: () => false };
+  },
+  async test(ch) { return 'Ready to share by hand'; },
+  async publish(ch, p, ref, step, ctx) {
+    const n = this.net(ch);
+    const { text } = socialText(ch, p, ctx, { limit: n.limit || Infinity, link: setting(ch, 'link'), hashtags: setting(ch, 'hashtags'), linkCost: n.linkCost });
+    return { manual: true, text, open: setting(ch, 'openUrl') || n.open(text), openLabel: 'Open ' + n.label.replace(/ \(.*\)/, '') };
+  },
+  async remove() {},
+  describe: ch => Manual.net(ch).label,
+  badge: ch => { const n = Manual.net(ch); return { abbr: n.abbr, hue: n.hue, sat: n.sat }; },
+};
+
+const TYPES = { wordpress: WordPress, youtube: YouTube, tiktok: TikTok, bluesky: Bluesky, mastodon: Mastodon, facebook: FacebookPage, instagram: Instagram, threads: Threads, discord: Discord, telegram: Telegram, manual: Manual };
+const GROUPS = [['site', 'Websites'], ['video', 'Video'], ['social', 'Social media'], ['manual', 'Share by hand']];
+const typeCan = (ch, key) => { const v = TYPES[ch.type][key]; return typeof v === 'function' ? !!v(ch) : !!v; };
+const visibleSettings = ch => (TYPES[ch.type].settings || []).filter(f => !f.when || hasMode(ch, f.when));
+
+function badge(chOrType, small) {
+  const t = typeof chOrType === 'string' ? TYPES[chOrType] : TYPES[chOrType.type];
+  const b = (typeof chOrType !== 'string' && t.badge) ? t.badge(chOrType) : { abbr: t.abbr, hue: t.hue, sat: t.sat };
+  return `<span class="badge${small ? ' sm' : ''}" style="--h:${b.hue};${b.sat ? '--s:' + b.sat : ''}" aria-hidden="true">${esc(b.abbr)}</span>`;
+}
+const chLimit = ch => ch.type === 'manual' ? Manual.net(ch).limit : ch.type === 'mastodon' ? (ch.cfg.limit || 500) : TYPES[ch.type].limit;
+
+/* =====================================================================
+   Rich text
+   ===================================================================== */
+const ALLOWED = { P: [], H2: [], H3: [], H4: [], STRONG: [], B: [], EM: [], I: [], U: [], S: [], A: ['href'], UL: [], OL: [], LI: [], BLOCKQUOTE: [], BR: [], HR: [], IMG: ['src', 'alt'], FIGURE: [], FIGCAPTION: [], CODE: [], PRE: [] };
+function sanitize(html) {
+  const doc = new DOMParser().parseFromString('<div>' + html + '</div>', 'text/html');
+  const root = doc.body.firstElementChild;
+  (function walk(node) {
+    for (const el of [...node.childNodes]) {
+      if (el.nodeType === 3) continue;
+      if (el.nodeType !== 1) { el.remove(); continue; }
+      const tag = el.tagName;
+      if (/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|META|LINK|TITLE|NOSCRIPT|SVG)$/.test(tag)) { el.remove(); continue; }
+      walk(el);
+      if (tag === 'H1') { const h = doc.createElement('h2'); h.append(...el.childNodes); el.replaceWith(h); continue; }
+      if (!(tag in ALLOWED)) {
+        if (tag === 'DIV' || tag === 'SECTION' || tag === 'ARTICLE') { const p = doc.createElement('p'); p.append(...el.childNodes); el.replaceWith(p); }
+        else el.replaceWith(...el.childNodes);
+        continue;
+      }
+      for (const a of [...el.attributes]) if (!ALLOWED[tag].includes(a.name)) el.removeAttribute(a.name);
+      if (tag === 'A') { const h = el.getAttribute('href') || ''; if (!/^(https?:|mailto:|\/|#)/i.test(h)) el.removeAttribute('href'); }
+      if (tag === 'IMG' && !/^https?:/i.test(el.getAttribute('src') || '')) el.remove();
+    }
+  })(root);
+  let out = root.innerHTML.replace(/<p>(\s|&nbsp;|<br>)*<\/p>/gi, '').trim();
+  if (out && !/<(p|h\d|ul|ol|blockquote|figure|pre|hr)\b/i.test(out)) {
+    out = out.split(/(?:<br>\s*){2,}|\n{2,}/).map(x => x.trim()).filter(Boolean).map(x => '<p>' + x + '</p>').join('\n');
+  }
+  return out;
+}
+
+const Editor = {
+  el: null, html: null, htmlMode: false,
+  init() {
+    this.el = $('#fBody'); this.html = $('#fBodyHtml');
+    try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch {}
+    $$('.toolbar button').forEach(b => {
+      b.addEventListener('mousedown', e => e.preventDefault());
+      b.addEventListener('click', () => this.cmd(b.dataset.cmd));
+    });
+    this.el.addEventListener('paste', e => {
+      const html = e.clipboardData.getData('text/html');
+      const text = e.clipboardData.getData('text/plain');
+      e.preventDefault();
+      const clean = html ? sanitize(html) : esc(text).split(/\n{2,}/).map(x => '<p>' + x.replace(/\n/g, '<br>') + '</p>').join('');
+      document.execCommand('insertHTML', false, clean);
+    });
+    ['keyup', 'mouseup', 'input'].forEach(ev => this.el.addEventListener(ev, () => this.state()));
+    document.addEventListener('selectionchange', () => { if (document.activeElement === this.el) this.state(); });
+  },
+  cmd(c) {
+    if (c === 'html') return this.toggleHtml();
+    if (this.htmlMode) return;
+    this.el.focus();
+    const block = t => document.execCommand('formatBlock', false, '<' + t + '>');
+    switch (c) {
+      case 'p': block('p'); break;
+      case 'h2': case 'h3': block(this.current() === c ? 'p' : c); break;
+      case 'quote': block(this.current() === 'blockquote' ? 'p' : 'blockquote'); break;
+      case 'bold': document.execCommand('bold'); break;
+      case 'italic': document.execCommand('italic'); break;
+      case 'ul': document.execCommand('insertUnorderedList'); break;
+      case 'ol': document.execCommand('insertOrderedList'); break;
+      case 'clear': document.execCommand('removeFormat'); block('p'); break;
+      case 'link': {
+        const url = window.prompt('Link address', 'https://');
+        if (url === null) break;
+        if (!url || url === 'https://') document.execCommand('unlink'); else document.execCommand('createLink', false, url);
+        break;
+      }
+    }
+    this.state(); Draft.queue();
+  },
+  current() { try { return String(document.queryCommandValue('formatBlock')).toLowerCase().replace(/[<>]/g, ''); } catch { return ''; } },
+  state() {
+    const cur = this.current();
+    const on = { h2: cur === 'h2', h3: cur === 'h3', quote: cur === 'blockquote' };
+    try { on.bold = document.queryCommandState('bold'); on.italic = document.queryCommandState('italic'); on.ul = document.queryCommandState('insertUnorderedList'); on.ol = document.queryCommandState('insertOrderedList'); } catch {}
+    $$('.toolbar button').forEach(b => { if (b.dataset.cmd !== 'html') b.setAttribute('aria-pressed', on[b.dataset.cmd] ? 'true' : 'false'); });
+  },
+  toggleHtml() {
+    this.htmlMode = !this.htmlMode;
+    if (this.htmlMode) { this.html.value = sanitize(this.el.innerHTML).replace(/<\/(p|h\d|ul|ol|blockquote|li)>/g, '</$1>\n'); this.html.style.height = Math.max(280, this.el.offsetHeight) + 'px'; }
+    else this.el.innerHTML = sanitize(this.html.value);
+    this.el.hidden = this.htmlMode; this.html.hidden = !this.htmlMode;
+    $('[data-cmd="html"]').setAttribute('aria-pressed', String(this.htmlMode));
+    $$('.toolbar button:not([data-cmd="html"])').forEach(b => b.disabled = this.htmlMode);
+    (this.htmlMode ? this.html : this.el).focus();
+  },
+  get() { return sanitize(this.htmlMode ? this.html.value : this.el.innerHTML); },
+  set(html) { this.el.innerHTML = sanitize(html || ''); this.html.value = this.el.innerHTML; },
+};
+
+/* =====================================================================
+   Compose
+   ===================================================================== */
+const C = { editingId: null, imageFile: null, imageKey: null, imageUrl: null, hadImage: false, removeImage: false, videoFile: null, videoKey: null, videoUrl: null, selected: new Set(), busy: false };
+
+const Draft = {
+  t: null,
+  queue() { clearTimeout(this.t); this.t = setTimeout(() => this.save(), 600); renderCounters(); },
+  save() {
+    const d = { editingId: C.editingId, title: $('#fTitle').value, body: Editor.get(), excerpt: $('#fExcerpt').value, link: $('#fLink').value, cats: $('#fCats').value, tags: $('#fTags').value, mode: mode(), when: $('#fWhen').value, selected: [...C.selected] };
+    if (LS.set('bh.draft', d)) $('#draftNote').textContent = 'Draft kept in this browser · ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  },
+  load() {
+    const d = LS.get('bh.draft', null);
+    if (!d) return false;
+    C.editingId = d.editingId && S.history.some(h => h.id === d.editingId) ? d.editingId : null;
+    const item = C.editingId && S.history.find(h => h.id === C.editingId);
+    C.hadImage = !!item?.hasImage;
+    $('#fTitle').value = d.title || ''; Editor.set(d.body); $('#fExcerpt').value = d.excerpt || ''; $('#fLink').value = d.link || '';
+    $('#fCats').value = d.cats || ''; $('#fTags').value = d.tags || ''; $('#fWhen').value = d.when || '';
+    setMode(d.mode || 'publish');
+    C.selected = new Set(d.selected || []);
+    return true;
+  },
+};
+
+function mode() { return $('input[name=mode]:checked')?.value || 'publish'; }
+function setMode(m) {
+  ($(`input[name=mode][value="${m}"]`) || $('#mPublish')).checked = true;
+  $('#scheduleRow').hidden = m !== 'schedule';
+  $('#draftHint').hidden = m !== 'draft';
+  updateSendLabel();
+}
+
+function renderPicker() {
+  const list = $('#pickList');
+  if (!S.channels.length) {
+    list.innerHTML = `<div class="empty" style="padding:18px"><span>No channels yet.</span><a class="btn small primary" href="#channels">Add your first channel</a></div>`;
+    $('#toggleAll').hidden = true; updateSendLabel(); renderCounters(); return;
+  }
+  $('#toggleAll').hidden = S.channels.length < 2;
+  $('#videoPanel').hidden = !C.videoFile && !S.channels.some(c => TYPES[c.type]?.group === 'video');
+  list.innerHTML = GROUPS.map(([g, label]) => {
+    const chs = S.channels.filter(c => TYPES[c.type]?.group === g);
+    if (!chs.length) return '';
+    return `<div class="pick-group"><div class="group-label">${label}</div>` + chs.map(ch => `
+      <label class="pick">
+        <input type="checkbox" value="${esc(ch.id)}" ${C.selected.has(ch.id) ? 'checked' : ''}>
+        ${badge(ch, true)}
+        <span style="min-width:0"><strong>${esc(ch.name)}</strong><small>${esc(TYPES[ch.type].describe(ch))}</small></span>
+        <span class="lamp ${S.tests[ch.id] ? (S.tests[ch.id].ok ? 'ok' : 'fail') : ''}" title="${esc(S.tests[ch.id]?.msg || 'Not checked yet')}"></span>
+      </label>`).join('') + '</div>';
+  }).join('');
+  $$('input', list).forEach(i => i.addEventListener('change', () => { i.checked ? C.selected.add(i.value) : C.selected.delete(i.value); updateSendLabel(); Draft.queue(); }));
+  updateSendLabel(); renderCounters();
+}
+
+function selectedIds() { return S.channels.filter(c => C.selected.has(c.id) && TYPES[c.type]).map(c => c.id); }
+
+/** Live character counts for selected social channels with a limit. */
+function renderCounters() {
+  const box = $('#socialCounts');
+  const chs = selectedIds().map(id => S.channels.find(c => c.id === id)).filter(ch => TYPES[ch.type].group !== 'site' && chLimit(ch));
+  if (!chs.length) { box.innerHTML = ''; return; }
+  const post = { title: $('#fTitle').value, social: $('#fExcerpt').value, tags: splitList($('#fTags').value) };
+  const firstSite = S.channels.find(c => C.selected.has(c.id) && c.type === 'wordpress');
+  const slug = ($('#fTitle').value || 'post').toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+  const link = $('#fLink').value.trim() || (firstSite ? firstSite.siteUrl + '/' + slug + '/' : '');
+  const ytTitle = chs.filter(ch => ch.type === 'youtube').map(ch => {
+    const n = graphemes(post.title.trim()) + (setting(ch, 'shorts') && !/#shorts/i.test(post.title) ? 8 : 0);
+    return `<span class="${n > 100 ? 'over' : ''}" title="${n > 100 ? 'Will be shortened to fit' : 'Fits'}">${esc(ch.name)} title ${n}/100</span>`;
+  }).join('');
+  box.innerHTML = ytTitle + chs.map(ch => {
+    const lim = chLimit(ch);
+    const card = ch.type === 'bluesky' && setting(ch, 'card') && link;
+    const raw = (post.social || post.title).trim();
+    const r = socialText(ch, { ...post, social: raw }, { link }, { link: setting(ch, 'link') && !card, hashtags: setting(ch, 'hashtags'), linkCost: ch.type === 'manual' ? Manual.net(ch).linkCost : ch.type === 'mastodon' ? 23 : undefined });
+    const over = r.length > lim;
+    return `<span class="${over ? 'over' : ''}" title="${over ? 'Will be shortened to fit' : 'Fits'}">${esc(ch.name)} ${r.length}/${lim}</span>`;
+  }).join('');
+}
+
+function updateSendLabel() {
+  const n = selectedIds().length, m = mode();
+  const item = C.editingId && S.history.find(h => h.id === C.editingId);
+  const sent = item && Object.keys(item.refs || {}).length;
+  const what = n === 1 ? '1 channel' : n + ' channels';
+  let label = m === 'schedule' ? `Schedule on ${what}` : m === 'draft' ? `Save drafts` : sent ? `Update on ${what}` : `Publish to ${what}`;
+  if (!n) label = 'Pick a channel to send to';
+  const btn = $('#sendBtn');
+  btn.textContent = C.busy ? 'Sending…' : label;
+  btn.disabled = C.busy || !n;
+}
+
+function showImage(url, name) {
+  const img = $('#imgPreview');
+  if (url) { img.src = url; img.hidden = false; $('#imgEmpty').hidden = true; $('#imageDrop').classList.add('has-image'); }
+  else { img.removeAttribute('src'); img.hidden = true; $('#imgEmpty').hidden = false; $('#imageDrop').classList.remove('has-image'); }
+  $('#imgName').textContent = name || '';
+  $('#imgRemove').hidden = !name;
+}
+function setImage(file) {
+  if (!file) return;
+  if (!/^image\//.test(file.type)) return toast('That file is not an image.', 'fail');
+  if (C.imageUrl) URL.revokeObjectURL(C.imageUrl);
+  C.imageFile = file; C.imageKey = [file.name, file.size, file.lastModified].join(':'); C.imageUrl = URL.createObjectURL(file); C.removeImage = false;
+  showImage(C.imageUrl, file.name + ' · ' + Math.max(1, Math.round(file.size / 1024)) + ' KB');
+}
+function clearImage() {
+  if (C.imageUrl) URL.revokeObjectURL(C.imageUrl);
+  C.imageFile = null; C.imageKey = null; C.imageUrl = null; C.removeImage = C.hadImage; C.hadImage = false;
+  $('#fImage').value = ''; showImage(null, '');
+}
+
+function fmtSize(b) { return b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b >= 1e6 ? Math.round(b / 1e6) + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB'; }
+function showVideo(url, name) {
+  const v = $('#vidPreview');
+  if (url) { v.src = url; v.hidden = false; $('#vidEmpty').hidden = true; $('#videoDrop').classList.add('has-image'); }
+  else { v.removeAttribute('src'); v.load(); v.hidden = true; $('#vidEmpty').hidden = false; $('#videoDrop').classList.remove('has-image'); }
+  $('#vidName').textContent = name || '';
+  $('#vidRemove').hidden = !url;
+}
+function setVideo(file) {
+  if (!file) return;
+  if (!/^video\//.test(file.type)) return toast('That file is not a video.', 'fail');
+  if (C.videoUrl) URL.revokeObjectURL(C.videoUrl);
+  C.videoFile = file; C.videoKey = [file.name, file.size, file.lastModified].join(':'); C.videoUrl = URL.createObjectURL(file);
+  const label = file.name + ' · ' + fmtSize(file.size);
+  showVideo(C.videoUrl, label);
+  $('#vidPreview').onloadedmetadata = e => {
+    const s = Math.round(e.target.duration || 0), v = e.target;
+    if (!s) return;
+    const shape = v.videoHeight > v.videoWidth ? ' · vertical' : '';
+    $('#vidName').textContent = label + ' · ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + shape;
+    try { v.currentTime = Math.min(1, s / 2); } catch {}
+  };
+  renderPicker();
+}
+function clearVideo() {
+  if (C.videoUrl) URL.revokeObjectURL(C.videoUrl);
+  C.videoFile = null; C.videoKey = null; C.videoUrl = null;
+  $('#fVideo').value = ''; showVideo(null, '');
+}
+
+function updateEditingBanner() {
+  const item = C.editingId && S.history.find(h => h.id === C.editingId);
+  $('#editingBanner').hidden = !item;
+  if (item) $('#editingTitle').textContent = item.title;
+  updateSendLabel();
+}
+
+function newBroadcast() {
+  C.editingId = null; C.hadImage = false; clearImage(); clearVideo(); C.removeImage = false;
+  $('#fTitle').value = ''; Editor.set(''); $('#fExcerpt').value = ''; $('#fLink').value = ''; $('#fCats').value = ''; $('#fTags').value = ''; $('#fWhen').value = '';
+  C.selected = new Set(S.channels.filter(c => c.type !== 'manual').map(c => c.id));
+  setMode('publish'); $('#resultsPanel').hidden = true; LS.del('bh.draft'); $('#draftNote').textContent = '';
+  renderPicker(); updateEditingBanner();
+}
+
+function loadForEdit(id) {
+  const item = S.history.find(h => h.id === id);
+  if (!item) return;
+  C.editingId = id; clearImage(); C.removeImage = false; C.hadImage = !!item.hasImage;
+  $('#fTitle').value = item.title; Editor.set(item.content); $('#fExcerpt').value = item.excerpt || ''; $('#fLink').value = item.linkOverride || '';
+  $('#fCats').value = (item.categories || []).join(', '); $('#fTags').value = (item.tags || []).join(', ');
+  const future = item.scheduleAt && item.scheduleAt > Date.now();
+  $('#fWhen').value = future ? toLocalInput(item.scheduleAt) : '';
+  setMode(item.mode === 'schedule' && future ? 'schedule' : item.mode === 'draft' ? 'draft' : 'publish');
+  C.selected = new Set(item.channelIds || []);
+  if (item.hasImage) showImage(item.imageUrl || null, (item.imageName || 'Current image') + ' (already posted)');
+  clearVideo();
+  if (item.videoName) $('#vidName').textContent = item.videoName + ' (already uploaded)';
+  $('#resultsPanel').hidden = true;
+  renderPicker(); updateEditingBanner(); Draft.save();
+  location.hash = '#compose';
+}
+
+function toLocalInput(t) { const d = new Date(t); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
+
+const STATUS_TEXT = { publish: 'Published', future: 'Scheduled', draft: 'Saved as draft', pending: 'Waiting for review', private: 'Uploaded as private', unlisted: 'Uploaded as unlisted', processing: 'Uploaded, processing' };
+
+function renderResultRows(ids) {
+  $('#resultsList').innerHTML = ids.map(id => {
+    const ch = S.channels.find(c => c.id === id);
+    return `<li data-id="${esc(id)}"><span class="lamp sending"></span><span class="name">${esc(ch ? ch.name : id)}</span><span class="msg">Waiting</span></li>`;
+  }).join('');
+}
+function setRow(id, state, msg, url, manual) {
+  const li = $(`#resultsList li[data-id="${CSS.escape(id)}"]`);
+  if (!li) return;
+  li.className = state;
+  $('.lamp', li).className = 'lamp ' + state;
+  const ch = S.channels.find(c => c.id === id);
+  $('.name', li).innerHTML = url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(ch?.name || id)}</a>` : esc(ch?.name || id);
+  $('.msg', li).textContent = msg;
+  $('.acts', li)?.remove();
+  if (manual) {
+    const acts = document.createElement('div'); acts.className = 'acts';
+    const copies = manual.copies || [{ label: 'Copy text', text: manual.text }];
+    acts.innerHTML = copies.map((c, i) => `<button class="btn tiny" type="button" data-copy="${i}">${esc(c.label)}</button>`).join('') + (manual.open ? `<a class="btn tiny primary" href="${esc(manual.open)}" target="_blank" rel="noopener">${esc(manual.openLabel)}</a>` : '');
+    $$('[data-copy]', acts).forEach(b => b.addEventListener('click', () => copyText(copies[+b.dataset.copy].text, b)));
+    li.appendChild(acts);
+  }
+}
+
+async function copyText(text, btn) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch {} ta.remove();
+  }
+  if (btn) { const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = t, 1500); }
+}
+
+/** Send to every selected channel. Websites go first so social posts can link to them and reuse the image. */
+async function send() {
+  if (C.busy) return;
+  const title = $('#fTitle').value.trim();
+  if (!title) { toast('Add a headline first.', 'fail'); $('#fTitle').focus(); return; }
+  const ids = selectedIds();
+  if (!ids.length) { toast('Pick at least one channel.', 'fail'); return; }
+  const m = mode();
+  let dateGmt = null, scheduleAt = null;
+  if (m === 'schedule') {
+    const d = $('#fWhen').value ? new Date($('#fWhen').value) : null;
+    if (!d || isNaN(d) || d.getTime() <= Date.now() + 60000) { toast('Pick a time in the future.', 'fail'); $('#fWhen').focus(); return; }
+    scheduleAt = d.getTime(); dateGmt = d.toISOString().slice(0, 19);
+  }
+
+  const social = $('#fExcerpt').value.trim();
+  const payload = {
+    title, content: Editor.get(), excerpt: social, social, mode: m, dateGmt, scheduleAt,
+    categories: splitList($('#fCats').value), tags: splitList($('#fTags').value),
+    imageFile: C.imageFile, imageKey: C.imageKey, removeImage: C.removeImage,
+    videoFile: C.videoFile, videoKey: C.videoKey,
+  };
+
+  let item = C.editingId && S.history.find(h => h.id === C.editingId);
+  if (!item) { item = { id: uid(), createdAt: Date.now(), refs: {}, results: {} }; S.history.unshift(item); }
+  Object.assign(item, {
+    title, content: payload.content, excerpt: social, categories: payload.categories, tags: payload.tags, linkOverride: $('#fLink').value.trim(),
+    mode: m, scheduleAt, channelIds: ids, removed: false,
+    hasImage: !!(C.imageFile || (item.hasImage && !C.removeImage)),
+    imageName: C.imageFile ? C.imageFile.name : (C.removeImage ? '' : item.imageName),
+    videoName: C.videoFile ? C.videoFile.name : item.videoName,
+  });
+
+  C.busy = true; updateSendLabel();
+  $('#resultsPanel').hidden = false; $('#resultsTitle').textContent = 'Sending';
+  renderResultRows(ids);
+
+  const ctx = { link: item.linkOverride, imageUrl: C.removeImage ? '' : (item.imageUrl || '') };
+  const run = async id => {
+    const ch = S.channels.find(c => c.id === id), type = TYPES[ch.type];
+    const ref = item.refs[id] || {};
+    const done = !!item.refs[id];
+    const hand = type.group === 'manual' || hasMode(ch, 'manual') && type.group === 'video';
+    const skip = msg => { item.results[id] = { skip: true, name: ch.name, msg }; setRow(id, 'skip', msg); };
+    if (m === 'draft' && type.group !== 'site' && !typeCan(ch, 'canDraft')) return skip(hand ? 'Skipped for drafts.' : `Skipped. Drafts are only saved on websites${S.channels.some(c => c.type === 'youtube' && hasMode(c, 'api')) ? ' and YouTube' : ''}.`);
+    if (m === 'schedule' && !typeCan(ch, 'canSchedule') && !done) {
+      return skip(hand ? 'Share it by hand when it goes live.' : `Skipped. ${type.label} can’t schedule posts; open this broadcast when it’s live and press Publish.`);
+    }
+    if (typeCan(ch, 'needsVideo') && !payload.videoFile && !done) return skip(`Skipped. Add a video to post on ${type.label}.`);
+    try {
+      const out = await type.publish(ch, payload, ref, s => setRow(id, 'sending', s + '…'), ctx);
+      if (out.manual) {
+        item.results[id] = { manual: true, name: ch.name, text: out.text, copies: out.copies, open: out.open, openLabel: out.openLabel, msg: out.note || '' };
+        return setRow(id, 'manual', out.note || 'Ready to share. Copy the text, then post it there.', '', out);
+      }
+      const { unchanged, note, ...clean } = out;
+      item.refs[id] = clean;
+      item.results[id] = { ok: true, name: ch.name, url: clean.url, status: clean.status, note: note || '', at: Date.now() };
+      setRow(id, 'ok', note || STATUS_TEXT[clean.status] || 'Posted', clean.url);
+    } catch (e) {
+      const msg = friendlyError(e);
+      item.results[id] = { ok: false, name: ch.name, error: msg, url: item.refs[id]?.url || '', at: Date.now() };
+      setRow(id, 'fail', msg);
+    }
+  };
+  const isSite = id => TYPES[S.channels.find(c => c.id === id).type].group === 'site';
+  await Promise.all(ids.filter(isSite).map(run));
+  // Social posts link to the first website in the list and reuse its copy of the image.
+  // A website draft has no public link, so then only a link typed in by hand is used.
+  for (const id of ids.filter(isSite)) {
+    const r = item.refs[id], res = item.results[id];
+    if (!r || !res?.ok) continue;
+    if (!ctx.link && r.url && (r.status === 'publish' || r.status === 'future')) ctx.link = r.url;
+    if (r.imageUrl && (payload.imageFile || !ctx.imageUrl)) ctx.imageUrl = r.imageUrl;
+  }
+  await Promise.all(ids.filter(id => !isSite(id)).map(run));
+
+  item.imageUrl = item.hasImage ? (ctx.imageUrl || item.imageUrl || '') : '';
+  item.sentAt = Date.now();
+  saveHistory();
+  C.busy = false; C.editingId = item.id; C.removeImage = false; C.hadImage = item.hasImage;
+  updateEditingBanner(); Draft.save();
+
+  const res = ids.map(id => item.results[id]);
+  const failed = res.filter(r => r.ok === false).length, manual = res.filter(r => r.manual).length;
+  $('#resultsTitle').textContent = failed ? `Done · ${failed} failed` : manual ? `Done · ${manual} to share by hand` : 'Done';
+  toast(failed ? `${failed} of ${ids.length} channels failed. See the list for why.` : 'Sent.', failed ? 'fail' : '');
+}
+
+/* =====================================================================
+   History
+   ===================================================================== */
+function itemState(item) {
+  if (item.removed) return ['Taken down', ''];
+  const res = (item.channelIds || []).map(id => item.results?.[id]).filter(Boolean);
+  if (!res.length) return ['Not sent', ''];
+  const real = res.filter(r => !r.skip && !r.manual);
+  const ok = real.filter(r => r.ok).length;
+  if (real.length && !ok) return ['Failed', 'fail'];
+  if (ok < real.length) return ['Partly sent', 'partial'];
+  if (item.mode === 'schedule' && item.scheduleAt > Date.now()) return ['Scheduled', 'partial'];
+  if (item.mode === 'draft') return ['Drafts', ''];
+  if (res.some(r => r.skip) && item.mode === 'schedule') return ['Some left to post', 'partial'];
+  return ['Sent', 'ok'];
+}
+
+function renderHistory() {
+  const list = $('#histList');
+  if (!S.history.length) {
+    list.innerHTML = `<div class="empty"><h3>Nothing sent yet</h3><span>Your broadcasts show up here with a link to each post.</span><a class="btn primary" href="#compose">Write the first one</a></div>`;
+    return;
+  }
+  list.innerHTML = S.history.map(item => {
+    const [label, cls] = itemState(item);
+    const when = item.mode === 'schedule' && item.scheduleAt ? 'Scheduled for ' + fmtDate(item.scheduleAt) : item.sentAt ? 'Sent ' + fmtDate(item.sentAt) : 'Created ' + fmtDate(item.createdAt);
+    const chips = item.removed ? '' : (item.channelIds || Object.keys(item.results || {})).map(cid => {
+      const r = item.results?.[cid]; if (!r) return '';
+      const ch = S.channels.find(c => c.id === cid);
+      const name = esc(ch?.name || r.name || 'Removed channel');
+      let lamp = 'ok', sub = '';
+      if (r.manual) { lamp = 'manual'; sub = ' <em>share by hand</em>'; }
+      else if (r.skip) { lamp = 'skip'; sub = ' <em>skipped</em>'; }
+      else if (!r.ok) { lamp = 'fail'; sub = ` <em>${esc(r.error)}</em>`; }
+      else if (r.status && r.status !== 'publish') sub = ` <em>${esc(STATUS_TEXT[r.status] || r.status)}</em>`;
+      const inner = `<span class="lamp ${lamp}"></span><span>${name}${sub}</span>`;
+      const href = r.manual ? r.open : (r.ok ? r.url : '');
+      return href ? `<a class="chip" href="${esc(href)}" target="_blank" rel="noopener" title="${esc(r.msg || r.note || '')}">${inner}</a>` : `<span class="chip" title="${esc(r.msg || r.note || r.error || '')}">${inner}</span>`;
+    }).join('');
+    const hasRefs = Object.keys(item.refs || {}).length > 0;
+    return `<article class="hist-item" data-id="${esc(item.id)}">
+      <div style="min-width:0"><h3>${esc(item.title || '(no headline)')}<span class="state ${cls}">${label}</span></h3><div class="hist-meta">${esc(when)}</div></div>
+      <div class="hist-actions">
+        <button class="btn small" data-act="edit">Open</button>
+        ${hasRefs ? '<button class="btn small danger" data-act="down">Take down</button>' : ''}
+        <button class="btn small" data-act="forget" title="Remove from this list only">Remove</button>
+      </div>
+      ${chips ? `<div class="chips">${chips}</div>` : ''}
+    </article>`;
+  }).join('');
+}
+
+async function takeDown(id, btn) {
+  const item = S.history.find(h => h.id === id);
+  if (!item) return;
+  const n = Object.keys(item.refs).length;
+  if (!window.confirm(`Delete this post on ${n} ${n === 1 ? 'channel' : 'channels'}? Websites move it to the trash.`)) return;
+  btn.disabled = true; btn.textContent = 'Taking down…';
+  const failed = [];
+  await Promise.all(Object.entries(item.refs).map(async ([cid, ref]) => {
+    const ch = S.channels.find(c => c.id === cid);
+    if (!ch) { delete item.refs[cid]; return; }
+    try { await TYPES[ch.type].remove(ch, ref); delete item.refs[cid]; delete item.results[cid]; }
+    catch (e) { failed.push(ch.name + ': ' + friendlyError(e)); }
+  }));
+  item.removed = !Object.keys(item.refs).length;
+  saveHistory(); renderHistory();
+  toast(failed.length ? failed.join(' · ') : 'Deleted everywhere.', failed.length ? 'fail' : '');
+}
+
+/* =====================================================================
+   Channels
+   ===================================================================== */
+function fieldHtml(prefix, f, value) {
+  const id = prefix + f.key;
+  const help = f.help ? `<span class="hint">${f.help}</span>` : '';
+  const opt = f.optional ? ' <span class="hint">(optional)</span>' : '';
+  const when = f.when ? ` data-when="${esc(f.when)}"` : '';
+  if (f.type === 'checkbox') return `<label class="check"${when}><input type="checkbox" id="${id}" name="${f.key}" ${value ? 'checked' : ''}> <span>${esc(f.label)}${f.help ? '<br>' + help : ''}</span></label>`;
+  if (f.type === 'select') return `<div class="field"${when}><label for="${id}">${esc(f.label)}${opt}</label><select id="${id}" name="${f.key}">${f.options.map(([v, l]) => `<option value="${esc(v)}" ${String(value ?? '') === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>${help}</div>`;
+  const type = f.type === 'password' ? 'password' : f.type === 'url' ? 'url' : 'text';
+  return `<div class="field"${when}><label for="${id}">${esc(f.label)}${opt}</label><input id="${id}" name="${f.key}" type="${type}" ${f.mono ? 'class="mono"' : ''} placeholder="${esc(f.placeholder || '')}" value="${esc(value ?? '')}" ${type === 'password' ? 'autocomplete="new-password"' : 'autocapitalize="off" spellcheck="false"'}>${help}</div>`;
+}
+
+function renderTypePicker() {
+  $('#typePicker').innerHTML = GROUPS.map(([g, label]) => {
+    const types = Object.entries(TYPES).filter(([, t]) => t.group === g);
+    return `<div class="type-group"><div class="group-label">${label}</div><div class="type-grid">${types.map(([k, t]) => `<button type="button" class="type-btn" data-type="${k}">${badge(k, true)}<span>${esc(t.label)}</span></button>`).join('')}</div></div>`;
+  }).join('<div style="height:10px"></div>');
+}
+
+function openAddForm(typeKey) {
+  const t = TYPES[typeKey];
+  S.addType = typeKey;
+  $('#typePicker').hidden = true; $('#addForm').hidden = false; $('#addError').hidden = true;
+  $('#addBadge').innerHTML = badge(typeKey);
+  $('#addTitle').textContent = t.label;
+  $('#addIntro').textContent = t.intro || '';
+  const hasName = t.fields.some(f => f.key === 'name');
+  const fields = hasName ? t.fields : [...t.fields, { key: 'name', label: 'Name', type: 'text', optional: true, placeholder: 'Uses the account name if empty' }];
+  $('#addFields').innerHTML = fields.map(f => fieldHtml('af-', f, f.type === 'select' ? f.options[0][0] : '')).join('');
+  const redirect = canOneClick() ? ` (and for “${esc(t.oauth?.label || 'Log in')}”: <code>${esc(pageUrl())}</code>)` : '';
+  const oneLabel = typeKey === 'wordpress' ? 'Connect with WordPress login instead' : t.oauth?.label || '';
+  $('#oneClickBtn').textContent = oneLabel;
+  $('#oneClickHint').textContent = typeKey === 'wordpress' ? 'You log in on the site, press Approve, and come straight back.' : 'Fill in the fields above first. You log in, approve, and come straight back.';
+  const applyMode = () => {
+    const m = $('#af-mode')?.value;
+    $$('#addFields [data-when]').forEach(el => { el.hidden = el.dataset.when !== m; });
+    const steps = Array.isArray(t.steps) ? t.steps : (t.steps?.[m] || []);
+    $('#addSteps').innerHTML = steps.map(s => `<li>${s.replace('{{redirect}}', redirect)}</li>`).join('');
+    $('#addSteps').hidden = !steps.length;
+    const hand = typeKey === 'manual' || m === 'manual';
+    $('#addBtn').textContent = hand ? 'Add' : 'Connect';
+    $('#oneClickBox').hidden = !(canOneClick() && (typeKey === 'wordpress' || (t.oauth && m === 'api')));
+  };
+  $('#af-mode')?.addEventListener('change', applyMode);
+  applyMode();
+  const site = $('#af-site');
+  if (site) site.addEventListener('input', () => {
+    const link = $('[data-profile-link]'); const v = site.value.trim();
+    if (!link) return;
+    link.hidden = !/\.[a-z]{2,}|localhost|127\.0\.0\.1/i.test(v);
+    if (!link.hidden) link.href = normUrl(v) + '/wp-admin/profile.php#application-passwords-section';
+  });
+  $('#addFields input, #addFields select')?.focus();
+}
+function closeAddForm() { S.addType = null; $('#addForm').hidden = true; $('#typePicker').hidden = false; $('#addForm').reset(); }
+
+function renderChannels() {
+  const list = $('#chList');
+  if (!S.channels.length) {
+    list.innerHTML = `<div class="empty"><h3>No channels connected</h3><span>Pick a website or social network under “Add a channel”. Each one shows the steps to connect it.</span></div>`;
+    return;
+  }
+  list.innerHTML = GROUPS.map(([g, label]) => {
+    const chs = S.channels.filter(c => TYPES[c.type]?.group === g);
+    if (!chs.length) return '';
+    return `<h2 class="ch-group-title">${label}</h2>` + chs.map(ch => {
+      const t = S.tests[ch.id], type = TYPES[ch.type], open = S.editingCh === ch.id;
+      const secretFields = (type.fields || []).filter(f => f.secret && (!f.when || hasMode(ch, f.when)));
+      const hand = ch.type === 'manual' || (type.group === 'video' && hasMode(ch, 'manual'));
+      return `<div class="ch" data-id="${esc(ch.id)}">
+        <div class="ch-top">
+          ${badge(ch)}
+          <span style="min-width:0"><strong>${esc(ch.name)}</strong><small>${esc(type.label + ' · ' + type.describe(ch))}</small></span>
+          <span class="row" style="flex-wrap:nowrap">
+            ${!hand ? '<button class="btn small" data-act="test">Check</button>' : ''}
+            <button class="btn small" data-act="toggle" aria-expanded="${open}">${open ? 'Close' : 'Settings'}</button>
+          </span>
+        </div>
+        ${t && !hand ? `<div class="ch-status ${t.ok ? 'ok' : 'fail'}">${esc(t.msg)}</div>` : ''}
+        ${open ? `<form class="ch-edit" data-form="${esc(ch.id)}">
+          ${fieldHtml('e-', { key: '_name', label: 'Name', type: 'text' }, ch.name)}
+          ${visibleSettings(ch).map(f => fieldHtml('e-', { ...f, when: '' }, setting(ch, f.key))).join('')}
+          ${secretFields.map(f => fieldHtml('e-', { ...f, key: '_secret_' + f.key, label: 'New ' + f.label.toLowerCase(), placeholder: 'Leave empty to keep the current one', help: '' }, '')).join('')}
+          <div class="row" style="justify-content:space-between">
+            <button class="btn primary" type="submit">Save</button>
+            <button class="link danger" type="button" data-act="remove">Remove channel</button>
+          </div>
+        </form>` : ''}
+      </div>`;
+    }).join('');
+  }).join('');
+}
+
+async function testChannel(id, quiet) {
+  const ch = S.channels.find(c => c.id === id);
+  if (!ch || !TYPES[ch.type]) return;
+  try { S.tests[id] = { ok: true, msg: await TYPES[ch.type].test(ch) }; }
+  catch (e) { S.tests[id] = { ok: false, msg: friendlyError(e) }; }
+  if (!quiet) toast(ch.name + ': ' + S.tests[id].msg, S.tests[id].ok ? '' : 'fail');
+  renderChannels(); renderPicker();
+}
+
+async function addChannel(typeKey, values, discovered) {
+  const r = await TYPES[typeKey].connect(values, discovered);
+  const { message, same, ...ch } = r;
+  const existing = S.channels.find(c => same(c));
+  if (existing) {
+    Object.assign(existing, ch, { id: existing.id, name: existing.name, settings: existing.settings });
+    S.tests[existing.id] = { ok: true, msg: message };
+  } else {
+    ch.id = typeKey.slice(0, 2) + '_' + uid(); ch.addedAt = Date.now(); ch.settings = ch.settings || {};
+    S.channels.push(ch); S.tests[ch.id] = { ok: true, msg: message }; C.selected.add(ch.id);
+  }
+  await saveChannels(); renderChannels(); renderPicker();
+  return (existing ? existing.name + ' updated. ' : ch.name + ' added. ') + message + '.';
+}
+
+/* One-click WordPress connect: only possible when this page is served over https. */
+function canOneClick() { return location.protocol === 'https:'; }
+async function startOneClick(site, name) {
+  const d = await WordPress.discover(site);
+  if (!d.authorize) throw new Error('That site doesn’t offer application passwords (it needs WordPress 5.6+ on https, and a security plugin may have turned them off). Use an application password instead.');
+  const state = uid() + uid();
+  LS.set('bh.pending', { state, d, name, at: Date.now() });
+  const back = location.origin + location.pathname + '?bh_state=' + state;
+  const u = new URL(d.authorize);
+  u.searchParams.set('app_name', 'Broadcast Hub (' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ')');
+  u.searchParams.set('app_id', APP_ID);
+  u.searchParams.set('success_url', back);
+  u.searchParams.set('reject_url', back + '&rejected=1');
+  Draft.save();
+  location.href = u.toString();
+}
+/* OAuth login for YouTube and TikTok: also only when served over https, with this page's address as redirect URI. */
+function startOAuth(typeKey, values) {
+  const t = TYPES[typeKey];
+  const missing = t.oauth.need.filter(k => !String(values[k] || '').trim());
+  if (missing.length) throw new Error('Fill in ' + missing.map(k => t.fields.find(f => f.key === k).label.toLowerCase()).join(' and ') + ' first.');
+  const state = uid() + uid();
+  LS.set('bh.pending', { kind: 'oauth', type: typeKey, state, values, at: Date.now() });
+  Draft.save();
+  location.href = t.oauth.url(values, pageUrl(), state);
+}
+async function finishOneClick() {
+  const q = new URLSearchParams(location.search);
+  const pend = LS.get('bh.pending', null);
+  if (pend?.kind === 'oauth' && q.get('state') && (q.get('code') || q.get('error'))) {
+    history.replaceState(null, '', location.pathname + '#channels'); route();
+    LS.del('bh.pending');
+    if (pend.state !== q.get('state')) return toast('That login request expired. Please try again.', 'fail');
+    if (q.get('error')) return toast('The login was cancelled or refused: ' + (q.get('error_description') || q.get('error')), 'fail');
+    try {
+      const extra = await TYPES[pend.type].oauth.exchange(pend.values, q.get('code'), pageUrl());
+      toast(await addChannel(pend.type, { ...pend.values, ...extra }));
+    } catch (e) { toast(friendlyError(e), 'fail'); }
+    return;
+  }
+  const state = q.get('bh_state');
+  if (!state) return;
+  history.replaceState(null, '', location.pathname + '#channels'); route();
+  const pending = LS.get('bh.pending', null);
+  LS.del('bh.pending');
+  if (!pending || pending.state !== state) return toast('That connection request expired. Please try again.', 'fail');
+  if (q.get('rejected')) return toast('The connection was declined on the site.', 'fail');
+  const user = q.get('user_login'), pass = q.get('password');
+  if (!user || !pass) return toast('The site did not send back login details.', 'fail');
+  try { toast(await addChannel('wordpress', { name: pending.name, user, pass }, pending.d)); }
+  catch (e) { toast(friendlyError(e), 'fail'); }
+}
+
+/* ---------- Lock ---------- */
+function renderLock() {
+  const area = $('#lockArea');
+  if (!window.crypto?.subtle) { area.innerHTML = '<p class="hint" style="margin:0">Passphrase lock isn’t available in this browser.</p>'; return; }
+  if (S.vault.enabled) {
+    area.innerHTML = `<p class="hint" style="margin:0">Logins are locked with a passphrase. You’ll be asked for it each time you open the app.</p>
+      <div class="row"><button class="btn small" type="button" id="lockNow">Lock now</button><button class="link" type="button" id="lockOff">Turn off lock</button></div>`;
+    $('#lockNow').onclick = () => location.reload();
+    $('#lockOff').onclick = async () => {
+      if (!window.confirm('Store logins without a passphrase?')) return;
+      S.vault = { enabled: false, salt: null, key: null }; await saveChannels(); renderLock(); toast('Lock turned off.');
+    };
+  } else {
+    area.innerHTML = `<form class="field" id="lockForm">
+        <label for="lp1">Lock logins with a passphrase</label>
+        <input id="lp1" type="password" placeholder="Passphrase (8+ characters)" minlength="8" autocomplete="new-password" required>
+        <input id="lp2" type="password" placeholder="Repeat passphrase" autocomplete="new-password" required>
+        <button class="btn small" type="submit" style="justify-self:start">Turn on lock</button>
+        <span class="hint">Encrypts saved passwords and tokens. If you forget it, you’ll need to reconnect your channels.</span>
+      </form>`;
+    $('#lockForm').onsubmit = async e => {
+      e.preventDefault();
+      const a = $('#lp1').value, b = $('#lp2').value;
+      if (a.length < 8) return toast('Use at least 8 characters.', 'fail');
+      if (a !== b) return toast('The two passphrases don’t match.', 'fail');
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      S.vault = { enabled: true, salt, key: await deriveKey(a, salt) };
+      await saveChannels(); renderLock(); toast('Logins are now locked with your passphrase.');
+    };
+  }
+}
+async function unlock(pass) {
+  const v = LS.get('bh.vault', null);
+  const salt = b64ToBytes(v.salt);
+  const key = await deriveKey(pass, salt);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ToBytes(v.iv) }, key, b64ToBytes(v.data));
+  S.channels = JSON.parse(new TextDecoder().decode(pt));
+  S.vault = { enabled: true, salt, key };
+}
+
+/* ---------- Backup ---------- */
+function exportBackup() {
+  const data = { app: 'broadcast-hub', version: 2, exportedAt: new Date().toISOString(), channels: S.channels, history: S.history };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'broadcast-hub-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+async function importBackup(file) {
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.app !== 'broadcast-hub') throw new Error('This is not a Broadcast Hub backup.');
+    let added = 0;
+    for (const ch of data.channels || []) if (!S.channels.some(c => c.id === ch.id)) { S.channels.push(ch); C.selected.add(ch.id); added++; }
+    for (const h of data.history || []) if (!S.history.some(x => x.id === h.id)) S.history.push(h);
+    S.history.sort((a, b) => (b.sentAt || b.createdAt) - (a.sentAt || a.createdAt));
+    await saveChannels(); saveHistory(); renderAll();
+    toast(`Restored ${added} ${added === 1 ? 'channel' : 'channels'} and the history.`);
+  } catch (e) { toast('Could not restore: ' + e.message, 'fail'); }
+}
+
+/* =====================================================================
+   App shell
+   ===================================================================== */
+let toastTimer;
+function toast(msg, kind = '') {
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast ' + kind; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, kind === 'fail' ? 7000 : 3500);
+}
+function renderCounts() { $('#histCount').textContent = S.history.length; $('#chCount').textContent = S.channels.length; }
+function renderAll() { renderCounts(); renderPicker(); renderHistory(); renderChannels(); renderLock(); updateEditingBanner(); }
+
+function route() {
+  const v = (location.hash || '').replace('#', '') || (S.channels.length ? 'compose' : 'channels');
+  const view = ['compose', 'history', 'channels'].includes(v) ? v : 'compose';
+  $$('[data-page]').forEach(s => s.hidden = s.id !== 'view-' + view);
+  $$('.tabs a').forEach(a => { if (a.dataset.view === view) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  if (view === 'history') renderHistory();
+  if (view === 'channels') renderChannels();
+  window.scrollTo(0, 0);
+}
+
+function bind() {
+  window.addEventListener('hashchange', route);
+
+  // Compose
+  ['#fTitle', '#fExcerpt', '#fLink', '#fCats', '#fTags', '#fWhen'].forEach(s => $(s).addEventListener('input', () => Draft.queue()));
+  $('#fBody').addEventListener('input', () => Draft.queue());
+  $('#fBodyHtml').addEventListener('input', () => Draft.queue());
+  $$('input[name=mode]').forEach(r => r.addEventListener('change', () => {
+    setMode(r.value); Draft.queue();
+    if (r.value === 'schedule' && !$('#fWhen').value) { const d = new Date(Date.now() + 3600e3); d.setMinutes(0, 0, 0); $('#fWhen').value = toLocalInput(d); }
+  }));
+  $('#toggleAll').addEventListener('click', () => {
+    const all = S.channels.every(c => C.selected.has(c.id));
+    C.selected = new Set(all ? [] : S.channels.map(c => c.id)); renderPicker(); Draft.queue();
+  });
+  $('#fImage').addEventListener('change', e => setImage(e.target.files[0]));
+  $('#imgRemove').addEventListener('click', e => { e.preventDefault(); clearImage(); });
+  const drop = $('#imageDrop');
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+  drop.addEventListener('drop', e => setImage(e.dataTransfer.files[0]));
+  $('#fVideo').addEventListener('change', e => setVideo(e.target.files[0]));
+  $('#vidRemove').addEventListener('click', e => { e.preventDefault(); clearVideo(); });
+  const vdrop = $('#videoDrop');
+  ['dragenter', 'dragover'].forEach(ev => vdrop.addEventListener(ev, e => { e.preventDefault(); vdrop.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(ev => vdrop.addEventListener(ev, e => { e.preventDefault(); vdrop.classList.remove('drag'); }));
+  vdrop.addEventListener('drop', e => setVideo(e.dataTransfer.files[0]));  $('#sendBtn').addEventListener('click', send);
+  $('#newBtn').addEventListener('click', newBroadcast);
+  $('#histNew').addEventListener('click', newBroadcast);
+  window.addEventListener('beforeunload', e => { if (C.busy) { e.preventDefault(); e.returnValue = ''; } });
+
+  // History
+  $('#histList').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]'); if (!btn) return;
+    const id = btn.closest('[data-id]').dataset.id;
+    if (btn.dataset.act === 'edit') loadForEdit(id);
+    if (btn.dataset.act === 'down') takeDown(id, btn);
+    if (btn.dataset.act === 'forget') {
+      if (!window.confirm('Remove from this list? Posts already published stay where they are.')) return;
+      S.history = S.history.filter(h => h.id !== id);
+      if (C.editingId === id) { C.editingId = null; updateEditingBanner(); }
+      saveHistory(); renderHistory();
+    }
+  });
+
+  // Channels
+  $('#typePicker').addEventListener('click', e => { const b = e.target.closest('[data-type]'); if (b) openAddForm(b.dataset.type); });
+  $('#addBack').addEventListener('click', closeAddForm);
+  $('#addForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const err = $('#addError'); err.hidden = true;
+    const values = Object.fromEntries(new FormData(e.target).entries());
+    const btn = $('#addBtn'), label = btn.textContent; btn.disabled = true; btn.textContent = 'Connecting…';
+    try { toast(await addChannel(S.addType, values)); closeAddForm(); }
+    catch (ex) { err.textContent = friendlyError(ex); err.hidden = false; }
+    btn.disabled = false; btn.textContent = label;
+  });
+  $('#oneClickBtn').addEventListener('click', async () => {
+    const err = $('#addError'); err.hidden = true;
+    if (S.addType !== 'wordpress') {
+      try { startOAuth(S.addType, Object.fromEntries(new FormData($('#addForm')).entries())); }
+      catch (ex) { err.textContent = friendlyError(ex); err.hidden = false; }
+      return;
+    }
+    const site = $('#af-site');
+    if (!site.value.trim()) { site.focus(); return; }
+    const btn = $('#oneClickBtn'); btn.disabled = true; btn.textContent = 'Opening the site…';
+    try { await startOneClick(normUrl(site.value), $('#af-name').value.trim()); }
+    catch (ex) { err.textContent = friendlyError(ex); err.hidden = false; btn.disabled = false; btn.textContent = 'Connect with WordPress login instead'; }
+  });
+
+  $('#chList').addEventListener('click', async e => {
+    const btn = e.target.closest('[data-act]'); if (!btn) return;
+    const id = btn.closest('[data-id]').dataset.id;
+    if (btn.dataset.act === 'test') { btn.disabled = true; btn.textContent = 'Checking…'; await testChannel(id); }
+    if (btn.dataset.act === 'toggle') { S.editingCh = S.editingCh === id ? null : id; renderChannels(); }
+    if (btn.dataset.act === 'remove') {
+      const ch = S.channels.find(c => c.id === id);
+      if (!window.confirm(`Remove ${ch.name}? Posts already published stay there. Remember to revoke the password or token on the service too.`)) return;
+      S.channels = S.channels.filter(c => c.id !== id); C.selected.delete(id); delete S.tests[id]; S.editingCh = null;
+      await saveChannels(); renderChannels(); renderPicker(); toast(ch.name + ' removed.');
+    }
+  });
+  $('#chList').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target, ch = S.channels.find(c => c.id === f.dataset.form), type = TYPES[ch.type];
+    const fd = new FormData(f);
+    ch.name = String(fd.get('_name') || '').trim() || ch.name;
+    const s = { ...(ch.settings || {}) };
+    for (const d of visibleSettings(ch)) s[d.key] = d.type === 'checkbox' ? fd.get(d.key) === 'on' : String(fd.get(d.key) ?? '').trim();
+    ch.settings = s;
+    let changedSecret = false;
+    for (const d of (type.fields || []).filter(x => x.secret)) {
+      const v = String(fd.get('_secret_' + d.key) || '').trim();
+      if (!v) continue;
+      changedSecret = true;
+      if (ch.type === 'wordpress') ch[d.key] = v; else ch.cfg[d.key] = v;
+      delete bskySessions[ch.id]; delete tokenCache[ch.id];
+    }
+    S.editingCh = null; await saveChannels(); renderChannels(); renderPicker(); toast('Saved.');
+    if (changedSecret) testChannel(ch.id);
+  });
+
+  $('#exportBtn').addEventListener('click', exportBackup);
+  $('#importFile').addEventListener('change', e => { if (e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ''; });
+  $('#wipeBtn').addEventListener('click', () => {
+    if (!window.confirm('Remove all channels, logins, history and drafts from this browser? Your published posts are not touched.')) return;
+    ['bh.channels', 'bh.vault', 'bh.history', 'bh.draft', 'bh.pending'].forEach(k => LS.del(k));
+    location.hash = ''; location.reload();
+  });
+
+  // Lock screen
+  $('#unlockForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    try { await unlock($('#unlockPass').value); $('#lockScreen').hidden = true; start(); }
+    catch { $('#unlockError').hidden = false; $('#unlockPass').select(); }
+  });
+  $('#lockForget').addEventListener('click', () => {
+    if (!window.confirm('Remove the locked logins? You will need to reconnect your channels. History is kept.')) return;
+    LS.del('bh.vault'); location.reload();
+  });
+}
+
+let started = false;
+async function start() {
+  if (started) return; started = true;
+  S.channels = S.channels.filter(c => TYPES[c.type]);
+  if (!Draft.load()) C.selected = new Set(S.channels.filter(c => c.type !== 'manual').map(c => c.id));
+  const item = C.editingId && S.history.find(h => h.id === C.editingId);
+  if (item?.hasImage) showImage(item.imageUrl || null, (item.imageName || 'Current image') + ' (already posted)');
+  renderTypePicker(); renderAll(); route();
+  await finishOneClick();
+  // Quietly check every channel so the lamps show which ones are ready.
+  S.channels.filter(c => c.type !== 'manual' && !(TYPES[c.type].group === 'video' && hasMode(c, 'manual'))).forEach(ch => testChannel(ch.id, true));
+}
+
+(function init() {
+  Editor.init();
+  bind();
+  $('#storageWarn').hidden = LS.ok;
+  S.history = LS.get('bh.history', []);
+  const vault = LS.get('bh.vault', null);
+  if (vault && window.crypto?.subtle) {
+    S.vault.enabled = true;
+    $('#lockScreen').hidden = false;
+    setTimeout(() => $('#unlockPass').focus(), 50);
+    renderCounts();
+  } else {
+    S.channels = LS.get('bh.channels', []);
+    start();
+  }
+})();
+</script>
+</body>
+</html>
